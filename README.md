@@ -29,7 +29,7 @@ Some useful scripts for Autodesk Maya
 
 ## Organization
 * `miscellaneous`: contains uncategorized scripts.
-* `vancouver_film_school`: contains scripts written in VFS students.
+* `vancouver_film_school`: contains scripts written for VFS (Vancouver Film School) students.
 
 ## Looking for GT Tools?
 I've moved GT Tools to its own repository. You can find it here: https://github.com/TrevisanGMW/gt-tools
