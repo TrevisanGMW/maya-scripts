@@ -1,6 +1,10 @@
 <!-- Maya Scripts -->
 
 <p></p>
+
+<img src="./maya_scripts_logo.png">
+
+<p></p>
 <p align="center"> 
 <a href="https://github.com/TrevisanGMW/maya-scripts/graphs/contributors">
 <img alt="GitHub contributors" src="https://img.shields.io/github/contributors/TrevisanGMW/maya-scripts.svg?style=flat-square" ></a>
@@ -19,13 +23,16 @@
 <a href="https://github.com/TrevisanGMW/maya-scripts/blob/master/LICENSE">
 <img alt="GitHub license" src="https://img.shields.io/github/license/TrevisanGMW/maya-scripts.svg?style=flat-square" ></a>
 
+<a href="https://www.paypal.me/TrevisanGMW"> 
+<img src="https://img.shields.io/badge/$-donate-blue.svg?maxAge=2592000&amp;style=flat-square">
+
 <a href="https://www.linkedin.com/in/trevisangmw/">
 <img alt="GitHub stars" src="https://img.shields.io/badge/-LinkedIn-black.svg?style=flat-square&logo=linkedin&colorB=555" ></a>
 </p>
 
 
 # Maya Scripts
-Some useful scripts for Autodesk Maya 
+Some scripts for Autodesk Maya. Here you find anything that is not part of a script package or was just made for a random project. 
 
 ## Organization
 * `miscellaneous`: contains uncategorized scripts.
