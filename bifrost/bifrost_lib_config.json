@@ -1,0 +1,18 @@
+{
+  "AminoConfigurations": [
+    {
+      "libraryVersion": "0.0.1",
+      "libraryName": "Miscellaneous",
+      "jsonLibs": [
+        {
+          "path": "compounds",
+          "files": [ ]
+        },
+        {
+          "path": "graphs",
+          "files": [ ]
+        }
+      ]
+    }
+  ]
+}
