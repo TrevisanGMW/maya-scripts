@@ -35,6 +35,8 @@
 Some scripts for Autodesk Maya. Here you find anything that is not part of a script package or was just made for a random project. 
 
 ## Organization
+* `bifrost`: contains scripts made for the bifrost extension.
+* `gt_tools`: contains a readme redirecting to GT-Tools. (This was the old link to download it)
 * `miscellaneous`: contains uncategorized scripts.
 * `vancouver_film_school`: contains scripts written for VFS (Vancouver Film School) students.
 
