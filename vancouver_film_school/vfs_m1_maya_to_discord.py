@@ -3,6 +3,9 @@
  GT Maya to Discord - Send images and videos (playblasts) from Maya to Discord using a Discord Webhook to bridge the two programs.
  @Guilherme Trevisan - TrevisanGMW@gmail.com - 2020-06-28 - github.com/TrevisanGMW
  Tested on Maya 2018, 2019, 2020 - Windows 10
+ 
+ 1.5 - 2020/11/16
+ Updated a few UI colors
   
 """ 
 
@@ -42,14 +45,14 @@ from httplib2 import Http
 
 
 # Forced Webhook
-hard_coded_webhook = 'https://discord.com/api/webhooks/....'
+hard_coded_webhook = 'https://discord.com/api/webhooks/xxxx'
 hard_coded_webhook_name = '3D### - Q&A'
 
 # Script Name
 script_name = "GT Maya to Discord"
 
 # Versions:
-script_version = "1.4"
+script_version = "1.5"
 maya_version = cmds.about(version=True)
 
 # Used to define multipart/form-data boundary
@@ -236,10 +239,10 @@ def build_gui_maya_to_discord():
     cmds.separator(h=10, style='none') # Empty Space
     cmds.rowColumnLayout(nc=1, cw=[(1, 270)], cs=[(1, 10)], p=content_main) # Window Size Adjustment
     cmds.rowColumnLayout(nc=4, cw=[(1, 10), (2, 150), (3, 60),(4, 40)], cs=[(1, 10), (2, 0), (3, 0)], p=content_main) # Title Column
-    cmds.text(" ", bgc=[0,.5,0]) # Tiny Empty Green Space
-    cmds.text(script_name, bgc=[0,.5,0],  fn="boldLabelFont", align="left")
-    cmds.button( l ="Settings", bgc=(0, .5, 0), c=lambda x:build_gui_settings_maya_to_discord())
-    cmds.button( l ="Help", bgc=(0, .5, 0), c=lambda x:build_gui_help_maya_to_discord())
+    cmds.text(" ", bgc=[.4,.4,.4]) # Tiny Empty Green Space
+    cmds.text(script_name, bgc=[.4,.4,.4],  fn="boldLabelFont", align="left")
+    cmds.button( l ="Settings", bgc=[.4,.4,.4], c=lambda x:build_gui_settings_maya_to_discord())
+    cmds.button( l ="Help", bgc=[.4,.4,.4], c=lambda x:build_gui_help_maya_to_discord())
     cmds.separator(h=5, style='none') # Empty Space
     
     # Body ====================
@@ -878,7 +881,7 @@ def build_gui_help_maya_to_discord():
     cmds.separator(h=12, style='none') # Empty Space
     cmds.rowColumnLayout(nc=1, cw=[(1, 310)], cs=[(1, 10)], p=main_column) # Window Size Adjustment
     cmds.rowColumnLayout(nc=1, cw=[(1, 300)], cs=[(1, 10)], p=main_column) # Title Column
-    cmds.text(script_name + " Help", bgc=[0,.5,0],  fn="boldLabelFont", align="center")
+    cmds.text(script_name + " Help", bgc=[.4,.4,.4],  fn="boldLabelFont", align="center")
     cmds.separator(h=10, style='none', p=main_column) # Empty Space
     
     # Body ====================
@@ -996,7 +999,7 @@ def build_gui_settings_maya_to_discord():
     cmds.separator(h=12, style='none') # Empty Space
     cmds.rowColumnLayout(nc=1, cw=[(1, 310)], cs=[(1, 10)], p=main_column) # Window Size Adjustment
     cmds.rowColumnLayout(nc=1, cw=[(1, 300)], cs=[(1, 10)], p=main_column) # Title Column
-    cmds.text(script_name + " Settings", bgc=[0,.5,0],  fn="boldLabelFont", align="center")
+    cmds.text(script_name + " Settings", bgc=[.4,.4,.4],  fn="boldLabelFont", align="center")
     cmds.separator(h=10, style='none', p=main_column) # Empty Space
     
     
@@ -1081,7 +1084,7 @@ def build_gui_settings_maya_to_discord():
     cmds.separator(h=5, style='none')
     
     cmds.rowColumnLayout(nc=1, cw=[(1, 300)], cs=[(1,10)], p=main_column)
-    cmds.button(l='Apply', h=30, bgc=(.6, .8, .6), c=lambda args: apply_settings())
+    cmds.button(l='Apply', h=30, bgc=(.6, .6, .6), c=lambda args: apply_settings())
     cmds.separator(h=8, style='none')
     
     # Show and Lock Window
