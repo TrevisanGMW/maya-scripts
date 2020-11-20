@@ -3,7 +3,9 @@
  GT Grading Script  - Script for automatically testing and grading assignments
  Configured for: Rigging 2 - Quadruped Rig (Panther)
  @Guilherme Trevisan - TrevisanGMW@gmail.com - 2020-10-31 - github.com/TrevisanGMW
- WIP
+ 
+ 1.1 - 2020-11-19
+ Updated colors and title text
 
 """
 import maya.cmds as cmds
@@ -12,7 +14,6 @@ from maya import OpenMayaUI as omui
 import maya.OpenMaya as om
 import os.path, time, re
 import maya.mel as mel
-
 
 try:
     from shiboken2 import wrapInstance
@@ -34,14 +35,14 @@ script_name = 'GT - Grading Script'
 re_file_name = re.compile(r'(^\dD\d{3}\_\w+\_)(QuadrupedRig|Quadruped)(_|.)')
 
 # Version
-script_version = '1.0'
+script_version = '1.1'
 
 # Grading Components
-gt_grading_components = { 0 : ['Skeleton and Joint Orientation', 20],
-                          1 : ['Rigging of Front and Rear Legs', 20],
-                          2 : ['Rigging of Spine, Head and Others', 20],
-                          3 : ['Skinning', 20],
-                          4 : ['Organization, Scale, Foot Rig', 20]
+gt_grading_components = { 0 : ['Organization, Scale, Foot Rig', 20], 
+                          1 : ['Skeleton and Joint Orientation', 20],
+                          2 : ['Front and Rear Legs', 20],
+                          3 : ['Spine and Others Controls', 20],
+                          4 : ['Skin Weights - Deformation', 20],
                         }
 
 # Common Notes
@@ -51,74 +52,62 @@ gt_grading_notes = { 0 : ['Scale Issue', 'Rig is not scalable. (Many things can 
                      3 : ['Joint Placement', 'Not all new joints seem to be positioned correctly.'],
                      4 : ['Missing Joint', 'Missing one or more expected joint.'],
                      5 : ['Incorrect Hierarchy', 'The current hierarchy is making the rig not fully functional.'],
-                     6 : ['Missing Connections', 'Some joints on the character\'s face don\'t seem to be properly connected to any controls or to the side UI.'],
-                     7 : ['Weak Set Driven Keys', 'Set driven keys are not moving the facial joints enough to properly change the facial expression.'],
+                     6 : ['Broken Front Leg', 'Front legs are not behaving as they should. (Probably missing automation steps)'],
+                     7 : ['Broken Rear Leg', 'Rear legs are not behaving as they should. (Probably missing automation steps)'],
                      8 : ['Missing Control', 'Missing a control or expected rigging element.'],
                      9 : ['Broken Control', 'Not all controls are fully functional. (Testing could have helped prevent that.)'],
-                    10 : ['Missing BS Target', 'Missing one or more expected blend shape target.'],
-                    11 : ['Broken Deformer', 'Not all deformers are fully functional.'],
+                    10 : ['Broken Spine', 'Spine (Follicle/Ribbon System) is not fully functional.'],
+                    11 : ['Missing Tail Ctrls', 'Tail was not rigged or current rig is not functional.'],
                     12 : ['Organization', 'Scene is not properly organized. (Possible issues: naming, junk objects, keyframes left behind, incorrect scene name, etc..)'],
                     13 : ['Symmetry Issues', 'Deformation is not symmetrical'],
                     14 : ['Random Influences', 'Some random vertices seem to be assigned incorrectly (Use ngSkinTools to avoid this)']
                    }
                    
-gt_grading_settings = { 'keyframes_interval' : 5,
+gt_grading_settings = { 'keyframes_interval' : 7,
                         'expected_joint_suffix' : '_jnt',
                         'expected_control_suffix' : '_ctrl'
                       }
 
 
 # Toggle Visibility List
-toggle_jnt_visibility = ['head', 'jaw', 'neckmid', 'neckmid']
+toggle_jnt_visibility = ['head', 'chest', 'abdomen','hip_ribbon', 'root' ]
 
 # Dict { joint_name : [position, rotation, radius, ignore_string_list] - Radius can be replaced with a XYZ tuple for custom scale. Add a list at the end of ignoring objects.
 # To quickly create a list use : extract_brute_force_dict(is_joint=False, include_vec_scale=False)
-brute_force_joint_naming_dict = {'neckBase_jnt' : [ [-0.000, 86.248, -3.785], [90.000, -16.310, 90.000], 1.8],
-                                 'neckMid_jnt' : [ [-0.000, 89.732, -2.946], [90.000, -25.099, 90.000], 1.8],
-                                 'head_jnt' : [ [-0.000, 92.828, -1.571], [90.000, -3.162, 90.000], 1.47, ['jaw', 'tongue', 'facial_rig']],
-                                 'head_endJnt' : [ [0.000, 103.658, -0.757], [90.000, -3.162, 90.000], 2.5],
-                                 'jawPivot_jnt' : [ [0.000, 94.628, 1.059], [-90.000, -42.261, -90.000], 1.6, ['head']],
-                                 'jawPivot_endJnt' : [ [0.000, 89.713, 4.353], [-90.000, -42.261, -90.000], 0.8],
-                                 'right_eye_jnt' : [ [-1.950, 97.160, 4.413], [-114.720, 85.248, 65.355], 0.8],
-                                 'right_eye_endJnt' : [ [-1.990, 97.074, 5.551], [-114.720, 85.248, 65.355], 0.3],
-                                 'left_eye_jnt' : [ [1.950, 97.160, 4.413], [65.280, -85.248, -65.355], 0.8],
-                                 'left_eye_endJnt' : [ [1.990, 97.074, 5.551], [65.280, -85.248, -65.355], 0.3],
-                                 'left_innerBrow_jnt' : [ [0.925, 98.158, 6.383], [-0.000, 0.000, 0.000], 0.55],
-                                 'left_midBrow_jnt' : [ [2.038, 98.469, 6.298], [-0.000, 0.000, 0.000], 0.55],
-                                 'left_outerBrow_jnt' : [ [3.206, 98.300, 5.873], [-0.000, 0.000, 0.000], 0.55],
-                                 'right_innerBrow_jnt' : [ [-0.925, 98.158, 6.383], [180.000, 0.000, 0.000], 0.55],
-                                 'right_midBrow_jnt' : [ [-2.038, 98.469, 6.298], [180.000, 0.000, 0.000], 0.55],
-                                 'right_outerBrow_jnt' : [ [-3.206, 98.300, 5.873], [180.000, 0.000, 0.000], 0.55],
-                                 'left_lipCorner_jnt' : [ [1.872, 92.292, 5.013], [-0.000, 0.000, 0.000], 1, ['teeth', 'tongue']],
-                                 'right_lipCorner_jnt' : [ [-1.872, 92.292, 5.013], [180.000, 0.000, 0.000], 1, ['teeth', 'tongue']],
-                                 'left_outerCheek_jnt' : [ [2.940, 94.904, 5.501], [-0.000, 0.000, 0.000], 1],
-                                 'left_innerCheek_jnt' : [ [1.105, 95.808, 5.906], [-0.000, 0.000, 0.000], 1],
-                                 'right_innerCheek_jnt' : [ [-1.105, 95.808, 5.906], [180.000, 0.000, 0.000], 1],
-                                 'right_outerCheek_jnt' : [ [-2.940, 94.904, 5.501], [180.000, 0.000, 0.000], 1],
-                                 'left_upperOutLip_jnt' : [ [1.019, 92.455, 5.636], [0.000, 19.839, 0.000], (0.750, 0.218, 0.336), ['ignore_name']], 
-                                 'left_upperOutLip_jnt' : [ [1.019, 92.455, 5.636], [0.000, 19.839, 0.000], (0.750, 0.218, 0.336)], 
-                                 'left_lowerOutLip_jnt' : [ [0.986, 92.066, 5.579], [0.000, 27.748, 0.000], (0.649, 0.203, 0.336)], 
-                                 'mid_lowerLip_jnt' : [ [0.000, 92.128, 5.824], [0.000, 0.000, -0.000], (0.676, 0.126, 0.336)], 
-                                 'mid_upperLip_jnt' : [ [0.000, 92.387, 5.820], [-0.000, 0.000, 0.000], (0.646, 0.157, 0.398)], 
-                                 'right_upperOutLip_jnt' : [ [-1.019, 92.455, 5.636], [0.000, 160.161, 0.000], (0.750, 0.218, 0.336)], 
-                                 'right_lowerOutLip_jnt' : [ [-0.986, 92.066, 5.579], [0.000, 152.252, 0.000], (0.649, 0.203, 0.336)] 
-                                }  
+brute_force_joint_naming_dict = {}  
                                                        
-brute_force_ctrl_naming_dict = {'main_eye_ctrl' : [ [0.000, 97.160, 18.800], [0.000, 0.000, 0.000], (1.000, 1.000, 10.000)],
-                                'left_eye_ctrl' : [ [1.950, 97.160, 18.800], [0.000, 0.000, 0.000], (1.000, 1.000, 10.000)],
-                                'right_eye_ctrl' : [ [-1.950, 97.160, 18.800], [0.000, 0.000, 0.000], (1.000, 1.000, 10.000)],
-                                'head_squashStretch_ctrl' : [ [0.000, 106.859, 1.500], [0.000, 0.000, 0.000], 3.660],
-                                'head_ctrl' : [ [-0.000, 92.828, -1.571], [90.000, -3.162, 90.000], 1.47, ['tongue']],
-                                'neckMid_ctrl' : [ [-0.000, 89.732, -2.946], [90.000, -25.099, 90.000], 1.8, ['neckBase', 'neckbase']],
+brute_force_ctrl_naming_dict = {'left_frontLeg_IK_ctrl' : [ [2.637, 1.851, 6.190], [0.000, 0.000, 0.000], (2.086, 2.086, 2.086), ['pole', 'toe', 'phalanges']], 
+                                'right_frontLeg_IK_ctrl' : [ [-2.637, 1.851, 6.190], [0.000, 0.000, 0.000], (2.086, 2.086, 2.086), ['pole', 'toe', 'phalanges']], 
+                                'left_rearLeg_IK_ctrl' : [ [2.049, 1.290, -7.942], [0.000, 0.000, 0.000], (1.715, 1.715, 1.715), ['pole', 'toe', 'phalanges']], 
+                                'right_rearLeg_IK_ctrl' : [ [-2.049, 1.290, -7.942], [0.000, 0.000, 0.000], (1.715, 1.715, 1.715), ['pole', 'toe', 'phalanges']], 
+                                'right_scapula_ctrl' : [ [-2.637, 13.814, 7.558], [0.000, 0.000, 0.000], (1.513, 1.945, 2.082), ['pole', 'toe', 'system', 'chest', 'spine', 'base', 'neck', 'abdomen']], 
+                                'left_scapula_ctrl' : [ [2.637, 13.814, 7.558], [0.000, 0.000, 0.000], (1.513, 1.945, 2.082), ['pole', 'toe', 'system', 'chest', 'spine', 'base', 'neck', 'abdomen']],
+                                'chest_ik_ctrl' : [ [0.000, 13.307, 7.094], [0.000, 0.000, 0.000], (1.367, 2.672, 2.571), ['pole', 'system', 'scapula', 'base', 'neck', 'abdomen', 'right', 'left']],
+                                'abdomen_ik_ctrl' : [ [0.000, 11.463, 0.904], [0.000, 0.000, 0.000], (2.546, 2.546, 4.017), ['pole', 'system', 'scapula', 'base', 'neck', 'right', 'left']],
+                                'hip_ik_ctrl' : [ [0.000, 12.043, -5.223], [0.000, 0.000, 0.000], (2.048, 2.432, 2.048), ['pole', 'system', 'tail', 'abdomen', 'right', 'left', 'base', 'direc', 'direction', 'cog']],
+                                'direction_hip_ctrl' : [ [0.000, 12.043, -5.223], [0.000, 0.000, 0.000], (2.048, 2.432, 2.048), ['pole', 'system', 'tail', 'abdomen', 'right', 'left', 'base', 'ik']],
+                                'main_ctrl' : [ [0.000, 0.000, 0.000], [0.000, 0.000, 0.000],  1.000],
+                                'main_eye_ctrl' : [ [0.000, 9.176, 20.423], [-155.678, 0.000, 0.000], (0.344, 1.396, 5.836), ['left', 'right']], 
+                                'left_eye_ctrl' : [ [1.013, 9.176, 20.423], [24.322, 0.000, 0.000], (0.564, 0.571, 5.136), ['main', 'right']], 
+                                'right_eye_ctrl' : [ [-1.013, 9.176, 20.423], [-155.678, 0.000, 0.000], (0.564, 0.571, 5.136), ['main', 'left']], 
+                                'nose_ctrl' : [ [0.000, 9.366, 16.508], [-90.000, -38.743, -90.000], (1.445, 0.568, 0.568), ['eye', 'jaw', 'head']], 
+                                'neckBase_ctrl' : [ [-0.000, 13.789, 9.250], [0.000, -90.000, 0.000], (1.697, 2.099, 2.692), ['ear', 'mid', 'jaw', 'head', 'chest', 'scapula', 'hip', 'pole', 'shoulder']], 
+                                'head_ctrl' : [ [-0.000, 13.254, 13.133], [90.000, -74.678, -90.000], (2.121, 1.904, 1.387), ['ear', 'neck', 'jaw']], 
+                                'right_ear_ctrl' : [ [-1.499, 13.691, 14.067], [0.000, 0.000, -39.037], (1.463, 1.000, 1.000), ['head', 'neck', 'jaw']], 
+                                'left_ear_ctrl' : [ [1.499, 13.691, 14.067], [180.000, -0.000, 39.037], (1.463, 1.000, 1.000), ['head', 'neck', 'jaw']], 
+                                'left_frontLeg_poleVec_ctrl' : [ [2.637, 6.903, 2.690], [0.000, 0.000, 0.000], (1.000, 2.637, 2.743), ['rear', 'spine', 'chest', 'shoulder', 'main', 'knee', 'scapula']], 
+                                'right_frontLeg_poleVec_ctrl' : [ [-2.637, 6.903, 2.690], [0.000, 0.000, 0.000], (1.000, 2.637, 2.743), ['rear', 'spine', 'chest', 'shoulder', 'main', 'knee', 'scapula']], 
+                                'right_upperRearLeg_poleVec_ctrl' : [ [-2.049, 6.074, -3.177], [0.000, 0.000, 0.000], (1.000, 3.758, 3.545), ['hip', 'direction', 'tail', 'lower']],
+                                'left_upperRearLeg_poleVec_ctrl' : [ [2.049, 6.074, -3.177], [0.000, 0.000, 0.000], (1.000, 3.758, 3.545), ['hip', 'direction', 'tail', 'lower']],
+                                'left_lowerRearLeg_poleVec_ctrl' : [ [2.049, 4.089, -12.947], [0.000, 0.000, 0.000], (1.000, 5.402, 4.389), ['hip', 'direction', 'tail', 'upper']],
+                                'right_lowerRearLeg_poleVec_ctrl' : [ [-2.049, 4.089, -12.947], [0.000, 0.000, 0.000], (1.000, 5.402, 4.389), ['hip', 'direction', 'tail', 'upper']],
+                                'jawPivot_ctrl' : [ [0.000, 11.077, 13.091], [90.000, -28.970, -90.000], (1.606, 1.606, 1.606), ['head', 'ear', 'neck', 'haed']],
+                                'neckMid_ctrl' : [ [-0.000, 13.789, 11.178], [90.000, -74.678, -90.000], (1.000, 1.000, 1.000), ['head', 'ear', 'base', 'Base']],
                                 }
-
-
 
 
 # Keep it here for backwards compatibility 
 ignore_non_uniques = ['effector6', 'left_Hand_IK_Gimbal_CtrlGrp', 'right_foot_Jnt','left_Hand_IK_Gimbal_ctrlGrp', 'right_foot_jnt']
-
-
 
 def build_gui_gt_grader_script():
     ''' Build UI'''
@@ -126,7 +115,7 @@ def build_gui_gt_grader_script():
     if cmds.window(window_name, exists=True):
         cmds.deleteUI(window_name, window=True)
 
-    cmds.window(window_name, title= script_name + ' - '+  assignment_name + ' - v' + script_version, mnb=False, mxb=False, s=True)
+    cmds.window(window_name, title= script_name + ' - '+  assignment_name + ' - (v' + script_version + ')', mnb=False, mxb=False, s=True)
     cmds.window(window_name, e=True, s=True, wh=[1,1])
 
     main_column = cmds.columnLayout(p= window_name)
@@ -198,14 +187,14 @@ def build_gui_gt_grader_script():
             cmds.intSliderGrp('grade_' + item_id, cw=[(1,0),(2,40),(3,10)], cal=[(1,'left')], field=True, label='',\
                               minValue=0, maxValue=max_value, fieldMinValue=0, fieldMaxValue=max_value, value=max_value, cc=lambda args: update_grade_output())
 
-    create_gt_grading_components(gt_grading_components, ([0,1,2, 3],'smallPlainLabelFont'))
+    create_gt_grading_components(gt_grading_components, ([0,1,2,3,4],'smallPlainLabelFont'))
     
     # Late Submission
     cmds.separator(h=5, style='none') # Empty Space
     cmds.separator(h=5, style='none') # Empty Space
     check_items_column = cmds.rowColumnLayout(nc=3, cw=[(1, 50), (2, 150),(3, 180)], cs=[(1, 15), (2, 10)], p=main_column)
 
-    cmds.button('check_btn_late_submission', l='Check', h=14, bgc=[.5,.7,.5], c=lambda args: run_check_operation('late_submission_check'))
+    cmds.button('check_btn_late_submission', l='Check', h=14, bgc=[.5,.7,.5], c=lambda args: late_submission_check())
     cmds.text('Late Submission Penalty (Days): ', fn='smallPlainLabelFont', align='left')
     cmds.intSliderGrp('late_submission_multiplier' , cw=[(1,0),(2,40),(3,10)], cal=[(1,'left')], field=True, label='' + ': ',\
                        minValue=0, maxValue=10, fieldMinValue=0, fieldMaxValue=100, value=0, fieldStep=10, cc=lambda args: update_grade_output())
@@ -376,17 +365,18 @@ def build_gui_gt_grader_script():
                         operation_name (string) : name of the operation/function to run
         
         '''
+        print(operation_name)
         try:
-            if operation_name == 'late_submission_check':
-                late_submission_check()
-            elif operation_name == 'joint_placement_skinning':
-                joint_placement_skinning()
-            elif operation_name == 'controls_side_ui_connection':
-                controls_side_ui_connection()
-            elif operation_name == 'blend_shapes_deformers':
-                blend_shapes_deformers()
-            elif operation_name == 'organization_functionality':
+            if operation_name == 'organization_scale_foot_rig':
                 organization_functionality()
+            elif operation_name == 'skeleton_and_joint_orientation':
+                skeleton_and_joint_orientation()
+            elif operation_name == 'front_and_rear_legs':
+                front_and_rear_legs()
+            elif operation_name == 'spine_and_others_controls':
+                spine_and_others_controls()
+            elif operation_name == 'skin_weights___deformation':
+                skin_weights___deformation()
             else:
                 pass
         except Exception as exception:
@@ -451,10 +441,8 @@ def build_gui_gt_grader_script():
             cmds.scrollField(output_scroll_field, e=True, ip=0, it='\nSome errors were raised:\n' + errors)
             cmds.scrollField(output_scroll_field, e=True, ip=1, it='') # Bring Back to the Top
             
-        # Focus On Head Area
-        frame_object('neckBase_Jnt')
-        frame_object('neckBase_jnt')
-        frame_object('neckbase_jnt')
+        # Focus On Area
+        frame_object('panther_body_geo')
           
             
     def open_file():
@@ -497,44 +485,59 @@ def build_gui_gt_grader_script():
             general_desired_size = .5
             all_joints = cmds.ls(type='joint')
             for obj in all_joints:
+                try:
+                    cmds.setAttr (obj + '.displayLocalAxis', 0)
+                except:
+                    pass
                 if cmds.objExists(obj):
                     if cmds.getAttr(obj + ".radius" ,lock=True) is False:
                         cmds.setAttr(obj + '.radius', general_desired_size)
                         cmds.select(d=True)
-                        if 'teeth' in obj:
-                            if cmds.getAttr(obj + ".radius" ,lock=True) is False:
-                                cmds.setAttr(obj + '.radius', general_desired_size/4)
-                                change_obj_color(obj, rgb_color=(1,0,0))
-                        if 'lip' in obj.lower():
-                            if cmds.getAttr(obj + ".radius" ,lock=True) is False:
-                                cmds.setAttr(obj + '.radius', general_desired_size/3)
-                                change_obj_color(obj, rgb_color=(0,0,1))
-                        if 'neckbase' in obj.lower():
+                        if 'root' in obj.lower() or 'hip' in obj.lower():
+                            if 'root' in obj.lower() and cmds.getAttr(obj + ".radius" ,lock=True) is False:
+                                cmds.setAttr(obj + '.radius', general_desired_size*3)
                             change_obj_color(obj, rgb_color=(1,1,0))
+                        if 'head' in obj.lower():
+                            if cmds.getAttr(obj + ".radius" ,lock=True) is False:
+                                cmds.setAttr(obj + '.radius', general_desired_size*2)
+                            change_obj_color(obj, rgb_color=(1,0,1))
                         if 'cheek' in obj.lower():
                             if cmds.getAttr(obj + ".radius" ,lock=True) is False:
                                 cmds.setAttr(obj + '.radius', general_desired_size/4)
                                 change_obj_color(obj, rgb_color=(0,1,0))
-                        if 'eye' in obj.lower() and 'end' not in obj.lower() and 'brow' not in obj.lower():
+                        if 'eye' in obj.lower() and 'end' not in obj.lower():
                             if cmds.getAttr(obj + ".radius" ,lock=True) is False:
                                 cmds.setAttr(obj + '.radius', general_desired_size*1.5)
                                 change_obj_color(obj, rgb_color=(1,0,0))
-                        if 'eye' in obj.lower() and 'end' in obj.lower() and 'brow' not in obj.lower():
+                        if 'eye' in obj.lower() and 'end' in obj.lower():
                             if cmds.getAttr(obj + ".radius" ,lock=True) is False:
                                 cmds.setAttr(obj + '.radius', general_desired_size/2)
                                 change_obj_color(obj, rgb_color=(0,1,1))
-                        if 'tongue' in obj.lower():
-                            if cmds.getAttr(obj + ".radius" ,lock=True) is False:
-                                cmds.setAttr(obj + '.radius', general_desired_size/6)
-                                change_obj_color(obj, rgb_color=(1,.5,1))
-                        if 'brow' in obj.lower():
-                            if cmds.getAttr(obj + ".radius" ,lock=True) is False:
-                                cmds.setAttr(obj + '.radius', general_desired_size/3)
-                                change_obj_color(obj, rgb_color=(0,1,.72))
                         if 'jaw' in obj.lower() and 'end' not in obj.lower():
                             if cmds.getAttr(obj + ".radius" ,lock=True) is False:
                                 cmds.setAttr(obj + '.radius', general_desired_size/3)
                                 change_obj_color(obj, rgb_color=(1,1,1))
+                                
+                        if 'scapula' in obj.lower() or 'humerus' in obj.lower() or 'radius' in obj.lower() or 'femur' in obj.lower():
+                            if cmds.getAttr(obj + ".radius" ,lock=True) is False:
+                                cmds.setAttr(obj + '.radius', general_desired_size)
+                                change_obj_color(obj, rgb_color=(0,1,0))
+                        
+                        if 'tail' in obj.lower():
+                            if cmds.getAttr(obj + ".radius" ,lock=True) is False:
+                                cmds.setAttr(obj + '.radius', general_desired_size/2)
+                                change_obj_color(obj, rgb_color=(1,.5,.5))
+                        
+                        if 'ribbon' in obj.lower() or 'abdomen' in obj.lower():
+                            if cmds.getAttr(obj + ".radius" ,lock=True) is False:
+                                cmds.setAttr(obj + '.radius', general_desired_size*3)
+                                change_obj_color(obj, rgb_color=(1,.16,.25))
+                                
+                        if 'end' in obj.lower():
+                            if cmds.getAttr(obj + ".radius" ,lock=True) is False:
+                                cmds.setAttr(obj + '.radius', general_desired_size/3)
+                                change_obj_color(obj, rgb_color=(1,0,0))
+                                
             cmds.jointDisplayScale(1) 
             
             # Try to make visible
@@ -624,116 +627,17 @@ def build_gui_gt_grader_script():
                 issues += '"' + keyframe + '"\n'
             issues += '\n'
             
-      
-        # Look for expected objects        
-        not_found = []
-        found_without_name = []
-        # Joints
-        all_joints = cmds.ls(type='joint', long=True)
-        for obj in brute_force_joint_naming_dict:
-            try:
-                obj_exists = False
-                if cmds.objExists(obj):
-                    obj_exists = True
-                elif cmds.objExists(obj.lower()) or cmds.objExists(obj.replace(gt_grading_settings.get('expected_joint_suffix'), '_Jnt')):
-                    found_without_name.append([obj.lower(), obj])
-                    obj_exists = True
-                else:
-                    if type(brute_force_joint_naming_dict.get(obj)[2]) is tuple:
-                        new_scale = brute_force_joint_naming_dict.get(obj)[2]
-                        ray_tracing_obj = cmds.polySphere(name=('ray_tracing_obj_' + obj), r=1, sx=8, sy=8, ch=False, cuv=False)
-                        if cmds.objExists(ray_tracing_obj[0]):
-                            cmds.setAttr(ray_tracing_obj[0] + '.scaleX', new_scale[0])
-                            cmds.setAttr(ray_tracing_obj[0] + '.scaleY', new_scale[1])
-                            cmds.setAttr(ray_tracing_obj[0] + '.scaleZ', new_scale[2])
-                    else:
-                        ray_tracing_obj = cmds.polySphere(name=('ray_tracing_obj_' + obj), r=brute_force_joint_naming_dict.get(obj)[2], sx=8, sy=8, ch=False, cuv=False)
-                        cmds.xform(ray_tracing_obj, ws=True, ro=(0,0,90) )
-                        cmds.makeIdentity(ray_tracing_obj, apply=True, rotate=True)
-                    cmds.xform(ray_tracing_obj, a=True, ro=brute_force_joint_naming_dict.get(obj)[1] )
-                    cmds.xform(ray_tracing_obj, a=True, t=brute_force_joint_naming_dict.get(obj)[0] )
-                    
-                    
-                    for jnt in all_joints:
-                        jnt_pos = cmds.xform(jnt, piv=True , q=True , ws=True)
-                        is_joint_inside = is_point_inside_mesh(ray_tracing_obj[0], point=(jnt_pos[0],jnt_pos[1],jnt_pos[2]))
-                        
-                        ignore_joint = False
-                        if len(brute_force_joint_naming_dict.get(obj)) == 4:
-                            for string in brute_force_joint_naming_dict.get(obj)[3]:
-                                if  string in jnt:
-                                    ignore_joint = True
-                        
-                        if is_joint_inside and get_short_name(jnt) != obj and ignore_joint is False:
-                            found_without_name.append([jnt, obj])
-                            obj_exists = True
-                    cmds.delete(ray_tracing_obj)
-                if not obj_exists:
-                    not_found.append(obj)
-            except Exception as e:
-                errors += str(e) + '\n'
-                search_delete_temp_meshes('ray_tracing_obj_')
-                
-
-        
-        # Ctrls (nurbsCurve)
-        all_nurbs_curves = cmds.ls(type='nurbsCurve', long=True)
-        for obj in brute_force_ctrl_naming_dict:
-            try:
-                obj_exists = False
-                if cmds.objExists(obj):
-                    obj_exists = True
-                elif cmds.objExists(obj.lower()) or cmds.objExists(obj.replace(gt_grading_settings.get('expected_control_suffix'), '_Ctrl')):
-                    found_without_name.append([obj.lower(), obj])
-                    obj_exists = True
-                else:
-                    if type(brute_force_ctrl_naming_dict.get(obj)[2]) is tuple:
-                        new_scale = brute_force_ctrl_naming_dict.get(obj)[2]
-                        ray_tracing_obj = cmds.polySphere(name=('ray_tracing_obj_' + obj), r=1, sx=8, sy=8, ch=False, cuv=False)
-                        if cmds.objExists(ray_tracing_obj[0]):
-                            cmds.setAttr(ray_tracing_obj[0] + '.scaleX', new_scale[0])
-                            cmds.setAttr(ray_tracing_obj[0] + '.scaleY', new_scale[1])
-                            cmds.setAttr(ray_tracing_obj[0] + '.scaleZ', new_scale[2])
-                    else:
-                        ray_tracing_obj = cmds.polySphere(name=('ray_tracing_obj_' + obj), r=brute_force_ctrl_naming_dict.get(obj)[2], sx=8, sy=8, ch=False, cuv=False)
-                        cmds.xform(ray_tracing_obj, ws=True, ro=(0,0,90) )
-                        cmds.makeIdentity(ray_tracing_obj, apply=True, rotate=True)
-                    cmds.xform(ray_tracing_obj, a=True, ro=brute_force_ctrl_naming_dict.get(obj)[1] )
-                    cmds.xform(ray_tracing_obj, a=True, t=brute_force_ctrl_naming_dict.get(obj)[0] )
-                    
-                    for crv in all_nurbs_curves:
-                        crv_transform = cmds.listRelatives(crv, allParents=True) or []
-                        if len(crv_transform) > 0:
-                            crv_pos = cmds.xform(crv_transform[0], piv=True , q=True , ws=True)
-                            is_crv_inside = is_point_inside_mesh(ray_tracing_obj[0], point=(crv_pos[0],crv_pos[1],crv_pos[2]))
-                            
-                            ignore_crv = False
-                            if len(brute_force_ctrl_naming_dict.get(obj)) == 4:
-                                for string in brute_force_ctrl_naming_dict.get(obj)[3]:
-                                    if string in crv:
-                                        ignore_crv = True
-                            
-                            if is_crv_inside and get_short_name(crv_transform[0]) != obj and ignore_crv is False:
-                                found_without_name.append([crv_transform[0], obj])
-                                obj_exists = True
-                    cmds.delete(ray_tracing_obj)
-                if not obj_exists:
-                    not_found.append(obj)
-            except Exception as e:
-                errors += str(e) + '\n'
-                search_delete_temp_meshes('ray_tracing_obj_')
-
-        # Write issues to the output string
-        if len(not_found) > 0:
-            issues += 'The following expected objects were not found:\n'
-        for obj in not_found:
-            issues += '"' + str(obj) + '"\n'
-        issues += '\n'
+        # # Write issues to the output string
+        # if len(not_found) > 0:
+        #     issues += 'The following expected objects were not found:\n'
+        # for obj in not_found:
+        #     issues += '"' + str(obj) + '"\n'
+        # issues += '\n'
             
-        if len(found_without_name) > 0:
-            issues += 'The following objects were found, but had a different name:\n'
-        for obj in found_without_name:
-            issues += '"' + str(get_short_name(obj[0])) + '" =>  Expected: "'+ str(obj[1]) + '".\n'
+        # if len(found_without_name) > 0:
+        #     issues += 'The following objects were found, but had a different name:\n'
+        # for obj in found_without_name:
+        #     issues += '"' + str(get_short_name(obj[0])) + '" =>  Expected: "'+ str(obj[1]) + '".\n'
 
  
 
@@ -875,43 +779,7 @@ def build_gui_gt_grader_script():
         '''
         to_rename = []
         errors = '' 
-        
-        # Joints
-        all_joints = cmds.ls(type='joint', long=True)
-        for obj in brute_force_joint_naming_dict:
-            
-            if type(brute_force_joint_naming_dict.get(obj)[2]) is tuple:
-                new_scale = brute_force_joint_naming_dict.get(obj)[2]
-                ray_tracing_obj = cmds.polySphere(name=('ray_tracing_obj_' + obj), r=1, sx=8, sy=8, ch=False, cuv=False)
-                if cmds.objExists(ray_tracing_obj[0]):
-                    cmds.setAttr(ray_tracing_obj[0] + '.scaleX', new_scale[0])
-                    cmds.setAttr(ray_tracing_obj[0] + '.scaleY', new_scale[1])
-                    cmds.setAttr(ray_tracing_obj[0] + '.scaleZ', new_scale[2])
-            else:
-                ray_tracing_obj = cmds.polySphere(name=('ray_tracing_obj_' + obj), r=brute_force_joint_naming_dict.get(obj)[2], sx=8, sy=8, ch=False, cuv=False)
-                cmds.xform(ray_tracing_obj, ws=True, ro=(0,0,90) )
-                cmds.makeIdentity(ray_tracing_obj, apply=True, rotate=True)
-            cmds.xform(ray_tracing_obj, a=True, ro=brute_force_joint_naming_dict.get(obj)[1] )
-            cmds.xform(ray_tracing_obj, a=True, t=brute_force_joint_naming_dict.get(obj)[0] )
-            
-            for jnt in all_joints:
-                try:
-                    jnt_pos = cmds.xform(jnt, piv=True , q=True , ws=True)
-                    is_joint_inside = is_point_inside_mesh(ray_tracing_obj[0], point=(jnt_pos[0],jnt_pos[1],jnt_pos[2]))
-                    
-                    ignore_joint = False
-                    if len(brute_force_joint_naming_dict.get(obj)) == 4:
-                        for string in brute_force_joint_naming_dict.get(obj)[3]:
-                            if string in jnt:
-                                ignore_joint = True
-                    
-                    if is_joint_inside and get_short_name(jnt) != obj and ignore_joint is False:
-                        to_rename.append([jnt, obj])
-                except Exception as e:
-                    search_delete_temp_meshes('ray_tracing_obj_')
-                    errors += str(e)
-            cmds.delete(ray_tracing_obj)
-        
+                
         # Ctrls
         all_nurbs_curves = cmds.ls(type='nurbsCurve', long=True)
         for obj in brute_force_ctrl_naming_dict:
@@ -929,10 +797,9 @@ def build_gui_gt_grader_script():
             cmds.xform(ray_tracing_obj, a=True, ro=brute_force_ctrl_naming_dict.get(obj)[1] )
             cmds.xform(ray_tracing_obj, a=True, t=brute_force_ctrl_naming_dict.get(obj)[0] )
             
-            
             for crv in all_nurbs_curves:
                 try:
-                    crv_transform = cmds.listRelatives(crv, allParents=True) or []
+                    crv_transform = cmds.listRelatives(crv, allParents=True, fullPath=True) or []
                     if len(crv_transform) > 0:
                         crv_pos = cmds.xform(crv_transform[0], piv=True , q=True , ws=True)
                         is_crv_inside = is_point_inside_mesh(ray_tracing_obj[0], point=(crv_pos[0],crv_pos[1],crv_pos[2]))
@@ -940,15 +807,17 @@ def build_gui_gt_grader_script():
                         ignore_crv = False
                         if len(brute_force_ctrl_naming_dict.get(obj)) == 4:
                             for string in brute_force_ctrl_naming_dict.get(obj)[3]:
-                                if string in crv:
+                                if string in crv.split('|')[-1]:
                                     ignore_crv = True
-                        
+        
                         if is_crv_inside and get_short_name(crv_transform[0]) != obj  and ignore_crv is False:
                             to_rename.append([crv_transform[0], obj])
                 except Exception as e:
+                    raise e
                     search_delete_temp_meshes('ray_tracing_obj_')
                     errors += str(e)
             cmds.delete(ray_tracing_obj)
+
                
         # Sort it based on how many parents it has
         pipe_pairs_to_rename = []
@@ -981,6 +850,7 @@ def build_gui_gt_grader_script():
         all_joints = cmds.ls(type='joint')
         hidden_joints = []
         visible_joints = []
+
         
         try:
             for jnt in all_joints:
@@ -1041,24 +911,20 @@ def reset_persp_shape_attributes():
         except:
             pass
 
-
-
 def delete_all_keyframes():
     '''Deletes all nodes of the type "animCurveTA" (keyframes)'''
     keys_ta = cmds.ls(type='animCurveTA')
     keys_tl = cmds.ls(type='animCurveTL')
     keys_tt = cmds.ls(type='animCurveTT')
     keys_tu = cmds.ls(type='animCurveTU')
-    #keys_ul = cmds.ls(type='animCurveUL')
-    #keys_ua = cmds.ls(type='animCurveUA')
-    #keys_ut = cmds.ls(type='animCurveUT')
-    #keys_uu = cmds.ls(type='animCurveUU')
     all_keyframes = keys_ta + keys_tl + keys_tt + keys_tu
     for obj in all_keyframes:
         try:
             cmds.delete(obj)
         except:
             pass
+
+     
             
 def reset_transforms():
     '''Modified version of the reset transforms. It checks for incomming connections, then set the attribute to 0 if there are none'''
@@ -1176,7 +1042,40 @@ def reset_transforms():
                         cmds.setAttr(obj + '.scaleZ', 1)
         except Exception as e:
             raise e
+    
+    to_key = ['left_frontLeg_IK_ctrl', 'left_frontLeg_IK_Ctrl', 'left_frontLeg_IKctrl',\
+              'right_frontLeg_IK_ctrl', 'right_frontLeg_IK_Ctrl', 'right_frontLeg_IKctrl',\
+              'left_rearLeg_IK_ctrl', 'left_rearLeg_IK_Ctrl', 'left_rearLeg_IKctrl',\
+              'right_rearLeg_IK_ctrl', 'right_rearLeg_IK_Ctrl', 'right_rearLeg_IKctrl',]
 
+    # Heel
+    keyframe_list(to_key, 0, 'heelRoll', 0)
+    keyframe_list(to_key, 0, 'heelroll', 0)
+    keyframe_list(to_key, 0, 'Heelroll', 0)
+    keyframe_list(to_key, 0, 'HeelRoll', 0)
+    keyframe_list(to_key, 0, 'heel_roll', 0)
+            
+    # Ball
+    keyframe_list(to_key, 0, 'ballRoll', 0)
+    keyframe_list(to_key, 0, 'ballroll', 0)
+    keyframe_list(to_key, 0, 'Ballroll', 0)
+    keyframe_list(to_key, 0, 'BallRoll', 0)
+    keyframe_list(to_key, 0, 'ball_roll', 0)
+    
+  
+    # Toe
+    keyframe_list(to_key, 0, 'toeRoll', 0)
+    keyframe_list(to_key, 0, 'toeroll', 0)
+    keyframe_list(to_key, 0, 'Toeroll', 0)
+    keyframe_list(to_key, 0, 'ToeRoll', 0)
+    keyframe_list(to_key, 0, 'toe_roll', 0)
+
+    # Toe Wiggle
+    keyframe_list(to_key, 0, 'toeWiggle', 0)
+    keyframe_list(to_key, 0, 'toewiggle', 0)
+    keyframe_list(to_key, 0, 'Toewiggle', 0)
+    keyframe_list(to_key, 0, 'ToeWiggle', 0)
+    keyframe_list(to_key, 0, 'toe_wiggle', 0)
 
 def set_display_layers_visibility(visibility_state):
     '''
@@ -1204,44 +1103,8 @@ def set_display_layers_type(display_layer_type):
                     cmds.setAttr(l + '.displayType', display_layer_type)
 
       
- 
-def key_arms(shoulder_name, elbow_name, keyframes_interval):
-    '''Keys Arm Joints (Used for upper body and symmetry steps)'''
-    if cmds.objExists(elbow_name):
-        try:
-            cmds.select(elbow_name)
-            elbow_selection = cmds.ls(selection=True)[0]
-            cmds.setKeyframe(elbow_selection, v=0, at='rotateZ', t=(keyframes_interval * 4))
-            cmds.setKeyframe(elbow_selection, v=-90, at='rotateZ', t=(keyframes_interval * 5 ))
-            cmds.setKeyframe(elbow_selection, v=0, at='rotateZ', t=(keyframes_interval * 6))
-            if cmds.objExists(shoulder_name):
-                cmds.select(shoulder_name)
-                shoulder_selection = cmds.ls(selection=True)[0]
-                cmds.setKeyframe(shoulder_selection, v=0, at='rotateY', t=(keyframes_interval * 6))
-                cmds.setKeyframe(shoulder_selection, v=-50, at='rotateY', t=(keyframes_interval * 7 ))
-                cmds.setKeyframe(shoulder_selection, v=0, at='rotateY', t=(keyframes_interval * 8 ))
-                cmds.setKeyframe(shoulder_selection, v=0, at='rotateZ', t=(keyframes_interval * 8 ))
-                cmds.setKeyframe(shoulder_selection, v=-50, at='rotateZ', t=(keyframes_interval * 9 ))
-                cmds.setKeyframe(shoulder_selection, v=0, at='rotateZ', t=(keyframes_interval * 10 ))
-        except:
-            pass
 
 
-def key_spine(spine_list, keyframes_interval):
-    '''Key Spine Joints (Used for upper body and symmetry steps)'''
-    for spine in spine_list:
-        if cmds.objExists(spine):
-            try:
-                cmds.select(spine)
-                spine = cmds.ls(selection=True)[0]
-                cmds.setKeyframe(spine, v=0, at='rotateZ', t=(keyframes_interval * 10))
-                cmds.setKeyframe(spine, v=30, at='rotateZ', t=(keyframes_interval * 11 ))
-                cmds.setKeyframe(spine, v=-30, at='rotateZ', t=(keyframes_interval * 13 ))
-                cmds.setKeyframe(spine, v=0, at='rotateZ', t=(keyframes_interval * 14))
-            except:
-                pass
-                
-                
                 
 def frame_object(obj):
     '''
@@ -1307,8 +1170,8 @@ def unsubdivide_geometries():
             pass
 
     
-def joint_placement_skinning():
-    '''Checks Joint Placement and Skinning'''
+def skeleton_and_joint_orientation():
+    '''Checks Joint Placement and Orientation'''
     
     # Reset other buttons
     for item in gt_grading_components:
@@ -1328,16 +1191,19 @@ def joint_placement_skinning():
     keyframes_interval = gt_grading_settings.get('keyframes_interval')
     cmds.playbackOptions(minTime=0, max = (keyframes_interval * 14))
     
-    # Focus On Head Area
-    frame_object('neckBase_Jnt')
-    frame_object('neckBase_jnt')
-    frame_object('neckbase_jnt')
+    # Focus On Panther's Body
+    frame_object('panther_body_geo')
     
     # Try to make joints visible
     all_transforms = cmds.ls(type='transform')
     all_joints = cmds.ls(type='transform')
     
     for jnt in all_joints: 
+        try:
+            if cmds.objectType(jnt) == 'joint':
+                cmds.setAttr(jnt + '.displayLocalAxis', 1)
+        except:
+            pass
         if 'root' in jnt:
             if cmds.getAttr(jnt + ".v" , lock=True):
                 cmds.setAttr(jnt + ".v", lock=False)
@@ -1357,235 +1223,382 @@ def joint_placement_skinning():
             cmds.modelEditor(each_panel, e=1, polymeshes=1)
             cmds.modelEditor(each_panel, e=1, joints=1)
             cmds.modelEditor(each_panel, e=1, wireframeOnShaded=1)
-            
+            cmds.modelEditor(each_panel, e=1, handles=1)
     except:
         pass
-    
-    
+        
+    # try:
+    #     try_to_hide_list = ['geometry_grp', 'geo_grp', 'panther_geo_grp', 'panther_body_geo']
+    #     for obj in try_to_hide_list:
+    #         if cmds.objExists(obj):
+    #             if cmds.getAttr(obj + ".v" , lock=True):
+    #                 cmds.setAttr(obj + ".v", lock=False)
+    #             cmds.setAttr(obj + ".v", 0)
+    # except:
+    #     pass
+            
     # Clean Selection
     cmds.select(clear=True)
-        
-    delete_all_keyframes()
     reset_transforms()
+    delete_all_keyframes()
     cmds.play(state=False)
     cmds.currentTime(0)
     
-    try:
-        from ngSkinTools.ui.mainwindow import MainWindow
-        MainWindow.open()
-    except:
-        pass
-    
-        
 
-def controls_side_ui_connection():
-    '''Checks Upper body and fingers'''
+
+def front_and_rear_legs():
+    '''Checks Legs'''
     
     # Reset other buttons
     for item in gt_grading_components:
         item_id = gt_grading_components.get(item)[0].lower().replace(" & ","_").replace(" ","_").replace("-","_").replace(",","").replace(":","")
-        if 'controls_side_ui_connection' not in item_id:
+        if 'front_and_rear_legs' not in item_id:
             cmds.button('check_btn_' + item_id, e=True, l='Check', bgc=[.5,.7,.5], ann='0')
     delete_all_keyframes()
     reset_transforms()
     
     # Check Button Status
-    button_status = int(cmds.button('check_btn_controls_side_ui_connection', q=True, ann=True))
+    button_status = int(cmds.button('check_btn_front_and_rear_legs', q=True, ann=True))
     if not button_status:
         # Change button to stop and update its status
-        cmds.button('check_btn_controls_side_ui_connection', e=True, l='Stop', bgc=[.5,.2,.2], ann='1')
+        cmds.button('check_btn_front_and_rear_legs', e=True, l='Stop', bgc=[.5,.2,.2], ann='1')
         
         # Unsubdivide Meshes
         unsubdivide_geometries()
         
-        
         # Reset Time
         cmds.currentTime(0)
         
-        # Adjust Size of the timeline
+        # Grap Speed from Settings
         keyframes_interval = gt_grading_settings.get('keyframes_interval')
-        cmds.playbackOptions(minTime=0, max = (keyframes_interval * 34))
+        
+        
                     
-        # Focus On Head Area
-        frame_object('head_Jnt')
-        frame_object('head_jnt')
-        frame_object('head_jnt')
-         
-        
-        # Right Eyebrows
-        to_key = ['right_outerBrow_Ctrl', 'right_outerBrow_ctrl', 'right_outerBrowCtrl']
-        # TY
-        keyframe_list(to_key, 0, 'translateY', (keyframes_interval * 2))
-        keyframe_list(to_key, 5, 'translateY', (keyframes_interval * 3))
-        keyframe_list(to_key, -5, 'translateY', (keyframes_interval * 4))
-        keyframe_list(to_key, 0, 'translateY', (keyframes_interval * 5))
-        
-        to_key = ['right_midBrow_Ctrl', 'right_midBrow_ctrl', 'right_midBrowCtrl']
-        # TY
-        keyframe_list(to_key, 0, 'translateY', (keyframes_interval * 6))
-        keyframe_list(to_key, 5, 'translateY', (keyframes_interval * 7))
-        keyframe_list(to_key, -5, 'translateY', (keyframes_interval * 8))
-        keyframe_list(to_key, 0, 'translateY', (keyframes_interval * 9))
-        
-        to_key = ['right_innerBrow_Ctrl', 'right_innerBrow_ctrl', 'right_innerBrowCtrl']
-        # TY
-        keyframe_list(to_key, 0, 'translateY', (keyframes_interval * 10))
-        keyframe_list(to_key, 5, 'translateY', (keyframes_interval * 11))
-        keyframe_list(to_key, -5, 'translateY', (keyframes_interval * 12))
-        keyframe_list(to_key, 0, 'translateY', (keyframes_interval * 13))
-        # TX
-        keyframe_list(to_key, 0, 'translateX', (keyframes_interval * 14))
-        keyframe_list(to_key, 5, 'translateX', (keyframes_interval * 15))
-        keyframe_list(to_key, 5, 'translateX', (keyframes_interval * 16))
-        keyframe_list(to_key, 0, 'translateX', (keyframes_interval * 17))
-        
-        # Left Eyebrows
-        to_key = ['left_outerBrow_Ctrl', 'left_outerBrow_ctrl', 'left_outerBrowCtrl']
-        # TY
-        keyframe_list(to_key, 0, 'translateY', (keyframes_interval * 2))
-        keyframe_list(to_key, 5, 'translateY', (keyframes_interval * 3))
-        keyframe_list(to_key, -5, 'translateY', (keyframes_interval * 4))
-        keyframe_list(to_key, 0, 'translateY', (keyframes_interval * 5))
-        
-        to_key = ['left_midBrow_Ctrl', 'left_midBrow_ctrl', 'left_midBrowCtrl'] 
-        # TY
-        keyframe_list(to_key, 0, 'translateY', (keyframes_interval * 6))
-        keyframe_list(to_key, 5, 'translateY', (keyframes_interval * 7))
-        keyframe_list(to_key, -5, 'translateY', (keyframes_interval * 8))
-        keyframe_list(to_key, 0, 'translateY', (keyframes_interval * 9))
-        
-        to_key = ['left_innerBrow_Ctrl', 'left_innerBrow_ctrl', 'left_innerBrowCtrl']
-        # TY
-        keyframe_list(to_key, 0, 'translateY', (keyframes_interval * 10))
-        keyframe_list(to_key, 5, 'translateY', (keyframes_interval * 11))
-        keyframe_list(to_key, -5, 'translateY', (keyframes_interval * 12))
-        keyframe_list(to_key, 0, 'translateY', (keyframes_interval * 13))
-        # TX
-        keyframe_list(to_key, 0, 'translateX', (keyframes_interval * 14))
-        keyframe_list(to_key, -5, 'translateX', (keyframes_interval * 15))
-        keyframe_list(to_key, -5, 'translateX', (keyframes_interval * 16))
-        keyframe_list(to_key, 0, 'translateX', (keyframes_interval * 17))
-        
-        
-        to_key = ['right_outerBrow_Ctrl', 'right_outerBrow_ctrl', 'right_outerBrowCtrl', 'right_midBrow_Ctrl', 'right_midBrow_ctrl', 'right_midBrowCtrl',\
-                  'right_innerBrow_Ctrl', 'right_innerBrow_ctrl', 'right_innerBrowCtrl', 'left_outerBrow_Ctrl', 'left_outerBrow_ctrl', 'left_outerBrowCtrl',\
-                  'left_midBrow_Ctrl', 'left_midBrow_ctrl', 'left_midBrowCtrl', 'left_innerBrow_Ctrl', 'left_innerBrow_ctrl', 'left_innerBrowCtrl']
-        # TY
-        keyframe_list(to_key, 0, 'translateY', (keyframes_interval * 16))
-        keyframe_list(to_key, 5, 'translateY', (keyframes_interval * 18))
-        keyframe_list(to_key, -5, 'translateY', (keyframes_interval * 20))
-        keyframe_list(to_key, 0, 'translateY', (keyframes_interval * 22))
-        
-        
-        # Eyes
-        to_key = ['right_eyelid_close_Ctrl', 'right_eyelid_close_ctrl', 'right_eyelid_closeCtrl','left_eyelid_close_Ctrl', 'left_eyelid_close_ctrl', 'left_eyelid_closeCtrl']
-        # TY
-        keyframe_list(to_key, 0, 'translateY', (keyframes_interval * 10))
-        keyframe_list(to_key, -10, 'translateY', (keyframes_interval * 12))
-        keyframe_list(to_key, 0, 'translateY', (keyframes_interval * 15))
-        
-        # Cheeks
-        to_key = ['left_outerCheek_Ctrl', 'left_outerCheek_ctrl', 'left_outerCheekCtrl','right_outerCheek_Ctrl', 'right_outerCheek_ctrl', 'right_outerCheekCtrl',\
-                  'left_innerCheek_Ctrl', 'left_innerCheek_ctrl', 'left_innerCheekCtrl', 'right_innerCheek_Ctrl', 'right_innerCheek_ctrl', 'right_innerCheekCtrl',\
-                  'left_puffCheek_Ctrl', 'left_puffCheek_ctrl', 'left_puffCheekCtrl', 'right_puffCheek_Ctrl', 'right_puffCheek_ctrl', 'right_puffCheekCtrl']
-        # TY
-        keyframe_list(to_key, 0, 'translateY', (keyframes_interval * 2))
-        keyframe_list(to_key, 10, 'translateY', (keyframes_interval * 4))
-        keyframe_list(to_key, 0, 'translateY', (keyframes_interval * 6))
+        # Focus On Desired Area
+        frame_object('panther_body_geo')
 
-        # Mouth Corners
-        to_key = ['right_lipCorner_Ctrl', 'right_lipCorner_ctrl', 'right_lipCornerCtrl','left_lipCorner_Ctrl', 'left_lipCorner_ctrl', 'left_lipCornerCtrl']
-        # TY
-        keyframe_list(to_key, 0, 'translateY', (keyframes_interval * 6))
-        keyframe_list(to_key, 5, 'translateY', (keyframes_interval * 8))
-        keyframe_list(to_key, -5, 'translateY', (keyframes_interval * 10))
-        keyframe_list(to_key, 0, 'translateY', (keyframes_interval * 12))
         
-        # TX
-        to_key = ['right_lipCorner_Ctrl', 'right_lipCorner_ctrl', 'right_lipCornerCtrl']
-        keyframe_list(to_key, 0, 'translateX', (keyframes_interval * 18))
-        keyframe_list(to_key, 5, 'translateX', (keyframes_interval * 20))
-        keyframe_list(to_key, -5, 'translateX', (keyframes_interval * 22))
-        keyframe_list(to_key, 0, 'translateX', (keyframes_interval * 24))
-        to_key = ['left_lipCorner_Ctrl', 'left_lipCorner_ctrl', 'left_lipCornerCtrl']
-        keyframe_list(to_key, 0, 'translateX', (keyframes_interval * 18))
-        keyframe_list(to_key, -5, 'translateX', (keyframes_interval * 20))
-        keyframe_list(to_key, 5, 'translateX', (keyframes_interval * 22))
-        keyframe_list(to_key, 0, 'translateX', (keyframes_interval * 24))
-        
-        # Mouth Inside
-        to_key = ['right_upperOutLip_ctrl', 'right_upperOutLipCtrl','left_upperOutLip_Ctrl', 'left_upperOutLip_ctrl',\
-                  'left_upperOutLipCtrl', 'right_lowerOutLip_Ctrl', 'right_lowerOutLip_ctrl', 'right_lowerOutLipCtrl',\
-                  'left_lowerOutLip_Ctrl', 'left_lowerOutLip_ctrl', 'left_lowerOutLipCtrl','right_upperOutLip_Ctrl']
-        # TY
-        keyframe_list(to_key, 0, 'translateY', (keyframes_interval * 12))
-        keyframe_list(to_key, 5, 'translateY', (keyframes_interval * 14))
-        keyframe_list(to_key, -5, 'translateY', (keyframes_interval * 16))
-        keyframe_list(to_key, 0, 'translateY', (keyframes_interval * 18))
-        
-        # Mouth Mid
-        to_key = ['mid_lip_Ctrl', 'mid_lip_ctrl', 'mid_lipCtrl']
-        # TY
-        keyframe_list(to_key, 0, 'translateY', (keyframes_interval * 1))
-        keyframe_list(to_key, 5, 'translateY', (keyframes_interval * 3))
-        keyframe_list(to_key, -5, 'translateY', (keyframes_interval * 5))
-        keyframe_list(to_key, 0, 'translateY', (keyframes_interval * 7))
-        
-        # Jaw 
-        to_key = ['jaw_Ctrl', 'jaw_ctrl', 'jawCtrl']
-        # TY
-        keyframe_list(to_key, 0, 'translateY', (keyframes_interval * 20))
-        keyframe_list(to_key, 5, 'translateY', (keyframes_interval * 22))
-        keyframe_list(to_key, -5, 'translateY', (keyframes_interval * 24))
-        keyframe_list(to_key, -5, 'translateY', (keyframes_interval * 32))
-        keyframe_list(to_key, 0, 'translateY', (keyframes_interval * 34))
-        
-        # Tongue In Out
-        to_key = ['tongue_in_out_Ctrl', 'tongue_in_out_ctrl', 'tongue_in_outCtrl']
-        # TY
-        keyframe_list(to_key, 0, 'translateY', (keyframes_interval * 24))
-        keyframe_list(to_key, 10, 'translateY', (keyframes_interval * 26))
-        keyframe_list(to_key, 10, 'translateY', (keyframes_interval * 32))
-        keyframe_list(to_key, 0, 'translateY', (keyframes_interval * 33))
-        
-        # Tongue ROT
-        to_key = ['tongue_Ctrl', 'tongue_ctrl', 'tongueCtrl']
-        # TY
-        keyframe_list(to_key, 0, 'translateY', (keyframes_interval * 26))
-        keyframe_list(to_key, 5, 'translateY', (keyframes_interval * 27))
-        keyframe_list(to_key, -5, 'translateY', (keyframes_interval * 28))
-        keyframe_list(to_key, 0, 'translateY', (keyframes_interval * 29))
-        # TX
-        keyframe_list(to_key, 0, 'translateX', (keyframes_interval * 29))
-        keyframe_list(to_key, 5, 'translateX', (keyframes_interval * 30))
-        keyframe_list(to_key, -5, 'translateX', (keyframes_interval * 31))
-        keyframe_list(to_key, 0, 'translateX', (keyframes_interval * 32))
+        # Try To Set Upper Knee Ratio
+        try:
+            if cmds.objExists('left_frontLeg_IK_ctrl'):
+                cmds.setAttr('left_frontLeg_IK_ctrl.upperKneeBendRatio', 0.15)
+            if cmds.objExists('left_frontLeg_IK_Ctrl'):
+                cmds.setAttr('left_frontLeg_IK_ctrl.upperKneeBendRatio', 0.15)
+                
+            if cmds.objExists('right_frontLeg_IK_ctrl'):
+                cmds.setAttr('right_frontLeg_IK_ctrl.upperKneeBendRatio', 0.15)
+            if cmds.objExists('right_frontLeg_IK_Ctrl'):
+                cmds.setAttr('right_frontLeg_IK_ctrl.upperKneeBendRatio', 0.15)
+                
+            if cmds.objExists('left_rearLeg_IK_ctrl'):
+                cmds.setAttr('left_rearLeg_IK_ctrl.upperKneeRatio', 0.5)
+            if cmds.objExists('left_rearLeg_IK_Ctrl'):
+                cmds.setAttr('left_rearLeg_IK_Ctrl.upperKneeRatio', 0.5)
+                
+            if cmds.objExists('right_rearLeg_IK_ctrl'):
+                cmds.setAttr('right_rearLeg_IK_ctrl.upperKneeRatio', 0.5)
+            if cmds.objExists('right_rearLeg_IK_Ctrl'):
+                cmds.setAttr('right_rearLeg_IK_Ctrl.upperKneeRatio', 0.5)
+        except:
+            pass
 
-        # Eyes Aim
-        to_key = ['main_eye_Ctrl', 'main_eye_ctrl', 'main_eyeCtrl']
-        # TY
-        keyframe_list(to_key, 0, 'translateY', (keyframes_interval * 16))
-        keyframe_list(to_key, 5, 'translateY', (keyframes_interval * 18))
-        keyframe_list(to_key, -5, 'translateY', (keyframes_interval * 20))
-        keyframe_list(to_key, 0, 'translateY', (keyframes_interval * 22))
-        # TX
-        keyframe_list(to_key, 0, 'translateX', (keyframes_interval * 22))
-        keyframe_list(to_key, 5, 'translateX', (keyframes_interval * 24))
-        keyframe_list(to_key, -5, 'translateX', (keyframes_interval * 26))
-        keyframe_list(to_key, 0, 'translateX', (keyframes_interval * 28))
         
-        to_key = ['left_eye_Ctrl', 'left_eye_ctrl', 'left_eyeCtrl', 'right_eye_Ctrl', 'right_eye_ctrl', 'right_eyeCtrl']
-        # TY
-        keyframe_list(to_key, 0, 'translateY', (keyframes_interval * 2))
-        keyframe_list(to_key, 5, 'translateY', (keyframes_interval * 4))
-        keyframe_list(to_key, -5, 'translateY', (keyframes_interval * 6))
-        keyframe_list(to_key, 0, 'translateY', (keyframes_interval * 8))
-        # TX
-        keyframe_list(to_key, 0, 'translateX', (keyframes_interval * 8))
-        keyframe_list(to_key, 5, 'translateX', (keyframes_interval * 10))
-        keyframe_list(to_key, -5, 'translateX', (keyframes_interval * 12))
-        keyframe_list(to_key, 0, 'translateX', (keyframes_interval * 14))
+        # Front Leg
+        to_key = ['left_frontLeg_IK_ctrl', 'left_frontLeg_IK_Ctrl', 'left_frontLeg_IKctrl',\
+                  'right_frontLeg_IK_ctrl', 'right_frontLeg_IK_Ctrl', 'right_frontLeg_IKctrl',]
+        step = 0
+        keyframe_list(to_key, 0, 'ty', 0)
+        keyframe_list(to_key, 0, 'tz', 0)
+        keyframe_list(to_key, 0, 'rx', 0)
+        step += 2
+        keyframe_list(to_key, 5, 'ty', (keyframes_interval * step))
+        keyframe_list(to_key, 10, 'tz', (keyframes_interval * step))
+        keyframe_list(to_key, -70, 'rx', (keyframes_interval * step))
+        step += 2
+        keyframe_list(to_key, 0, 'ty', (keyframes_interval * step))
+        keyframe_list(to_key, 0, 'tz', (keyframes_interval * step))
+        keyframe_list(to_key, 0, 'rx', (keyframes_interval * step))
 
+        # Front Pole Vec
+        
+        to_key = ['left_frontLeg_poleVec_ctrl', 'left_frontLeg_poleVec_Ctrl', 'left_frontLeg_poleVecCtrl']
+        
+        store_step = step
+        keyframe_list(to_key, 0, 'tx', (keyframes_interval * step))
+        step += 2
+        keyframe_list(to_key, 5, 'tx', (keyframes_interval * step))
+        step += 2
+        keyframe_list(to_key, 0, 'tx', (keyframes_interval * step))
+        
+        to_key = ['right_frontLeg_poleVec_ctrl', 'right_frontLeg_poleVec_Ctrl', 'right_frontLeg_poleVecCtrl']
+        
+        step = store_step
+        keyframe_list(to_key, 0, 'tx', (keyframes_interval * step))
+        step += 2
+        keyframe_list(to_key, -5, 'tx', (keyframes_interval * step))
+        step += 2
+        keyframe_list(to_key, 0, 'tx', (keyframes_interval * step))
+
+        to_key = ['left_scapula_ctrl', 'left_scapula_Ctrl', 'left_scapulaCtrl',\
+                  'right_scapula_ctrl', 'right_scapula_Ctrl', 'right_scapulaCtrl']
+        
+        keyframe_list(to_key, 0, 'ty', (keyframes_interval * step))
+        step += 2
+        keyframe_list(to_key, -3, 'ty', (keyframes_interval * step))
+        step += 2
+        keyframe_list(to_key, 0, 'ty', (keyframes_interval * step))
+        
+        to_key = ['left_frontLeg_IK_ctrl', 'left_frontLeg_IK_Ctrl', 'left_frontLeg_IKctrl',\
+                  'right_frontLeg_IK_ctrl', 'right_frontLeg_IK_Ctrl', 'right_frontLeg_IKctrl',]
+        
+        # Heel
+        keyframe_list(to_key, 0, 'heelRoll', (keyframes_interval * step))
+        keyframe_list(to_key, 0, 'heelroll', (keyframes_interval * step))
+        keyframe_list(to_key, 0, 'Heelroll', (keyframes_interval * step))
+        keyframe_list(to_key, 0, 'HeelRoll', (keyframes_interval * step))
+        keyframe_list(to_key, 0, 'heel_roll', (keyframes_interval * step))
+        
+        step += 1
+        keyframe_list(to_key, 10, 'heelRoll', (keyframes_interval * step))
+        keyframe_list(to_key, 10, 'heelroll', (keyframes_interval * step))
+        keyframe_list(to_key, 10, 'Heelroll', (keyframes_interval * step))
+        keyframe_list(to_key, 10, 'HeelRoll', (keyframes_interval * step))
+        keyframe_list(to_key, 10, 'heel_roll', (keyframes_interval * step))
+        
+        step += 1
+        keyframe_list(to_key, 0, 'heelRoll', (keyframes_interval * step))
+        keyframe_list(to_key, 0, 'heelroll', (keyframes_interval * step))
+        keyframe_list(to_key, 0, 'Heelroll', (keyframes_interval * step))
+        keyframe_list(to_key, 0, 'HeelRoll', (keyframes_interval * step))
+        keyframe_list(to_key, 0, 'heel_roll', (keyframes_interval * step))
+        
+        # Ball
+        keyframe_list(to_key, 0, 'ballRoll', (keyframes_interval * step))
+        keyframe_list(to_key, 0, 'ballroll', (keyframes_interval * step))
+        keyframe_list(to_key, 0, 'Ballroll', (keyframes_interval * step))
+        keyframe_list(to_key, 0, 'BallRoll', (keyframes_interval * step))
+        keyframe_list(to_key, 0, 'ball_roll', (keyframes_interval * step))
+        
+        step += 1
+        keyframe_list(to_key, 10, 'ballRoll', (keyframes_interval * step))
+        keyframe_list(to_key, 10, 'ballroll', (keyframes_interval * step))
+        keyframe_list(to_key, 10, 'Ballroll', (keyframes_interval * step))
+        keyframe_list(to_key, 10, 'BallRoll', (keyframes_interval * step))
+        keyframe_list(to_key, 10, 'ball_roll', (keyframes_interval * step))
+        
+        step += 1
+        keyframe_list(to_key, 0, 'ballRoll', (keyframes_interval * step))
+        keyframe_list(to_key, 0, 'ballroll', (keyframes_interval * step))
+        keyframe_list(to_key, 0, 'Ballroll', (keyframes_interval * step))
+        keyframe_list(to_key, 0, 'BallRoll', (keyframes_interval * step))
+        keyframe_list(to_key, 0, 'ball_roll', (keyframes_interval * step))
+      
+        # Toe
+        keyframe_list(to_key, 0, 'toeRoll', (keyframes_interval * step))
+        keyframe_list(to_key, 0, 'toeroll', (keyframes_interval * step))
+        keyframe_list(to_key, 0, 'Toeroll', (keyframes_interval * step))
+        keyframe_list(to_key, 0, 'ToeRoll', (keyframes_interval * step))
+        keyframe_list(to_key, 0, 'toe_roll', (keyframes_interval * step))
+        
+        step += 1
+        keyframe_list(to_key, 10, 'toeRoll', (keyframes_interval * step))
+        keyframe_list(to_key, 10, 'toeroll', (keyframes_interval * step))
+        keyframe_list(to_key, 10, 'toeroll', (keyframes_interval * step))
+        keyframe_list(to_key, 10, 'ToeRoll', (keyframes_interval * step))
+        keyframe_list(to_key, 10, 'toe_roll', (keyframes_interval * step))
+        
+        step += 1
+        keyframe_list(to_key, 0, 'toeRoll', (keyframes_interval * step))
+        keyframe_list(to_key, 0, 'toeroll', (keyframes_interval * step))
+        keyframe_list(to_key, 0, 'Toeroll', (keyframes_interval * step))
+        keyframe_list(to_key, 0, 'ToeRoll', (keyframes_interval * step))
+        keyframe_list(to_key, 0, 'toe_roll', (keyframes_interval * step))
+        
+        # Toe Wiggle
+        keyframe_list(to_key, 0, 'toeWiggle', (keyframes_interval * step))
+        keyframe_list(to_key, 0, 'toewiggle', (keyframes_interval * step))
+        keyframe_list(to_key, 0, 'Toewiggle', (keyframes_interval * step))
+        keyframe_list(to_key, 0, 'ToeWiggle', (keyframes_interval * step))
+        keyframe_list(to_key, 0, 'toe_wiggle', (keyframes_interval * step))
+        
+        step += 1
+        keyframe_list(to_key, 10, 'toeWiggle', (keyframes_interval * step))
+        keyframe_list(to_key, 10, 'toewiggle', (keyframes_interval * step))
+        keyframe_list(to_key, 10, 'Toewiggle', (keyframes_interval * step))
+        keyframe_list(to_key, 10, 'ToeWiggle', (keyframes_interval * step))
+        keyframe_list(to_key, 10, 'toe_wiggle', (keyframes_interval * step))
+        
+        step += 1
+        keyframe_list(to_key, -10, 'toeWiggle', (keyframes_interval * step))
+        keyframe_list(to_key, -10, 'toewiggle', (keyframes_interval * step))
+        keyframe_list(to_key, -10, 'Toewiggle', (keyframes_interval * step))
+        keyframe_list(to_key, -10, 'ToeWiggle', (keyframes_interval * step))
+        keyframe_list(to_key, -10, 'toe_wiggle', (keyframes_interval * step))
+        
+        step += 1
+        keyframe_list(to_key, 0, 'toeWiggle', (keyframes_interval * step))
+        keyframe_list(to_key, 0, 'toewiggle', (keyframes_interval * step))
+        keyframe_list(to_key, 0, 'Toewiggle', (keyframes_interval * step))
+        keyframe_list(to_key, 0, 'ToeWiggle', (keyframes_interval * step))
+        keyframe_list(to_key, 0, 'toe_wiggle', (keyframes_interval * step))
+      
+        # Rear Leg
+        to_key = ['left_rearLeg_IK_ctrl', 'left_rearLeg_IK_Ctrl', 'left_rearLeg_IKctrl',\
+                  'right_rearLeg_IK_ctrl', 'right_rearLeg_IK_Ctrl', 'right_rearLeg_IKctrl',]
+
+        keyframe_list(to_key, 0, 'ty', (keyframes_interval * step))
+        keyframe_list(to_key, 0, 'rx', (keyframes_interval * step))
+        
+        step += 2
+        keyframe_list(to_key, 5, 'ty', (keyframes_interval * step))
+        keyframe_list(to_key, 30, 'rx', (keyframes_interval * step))
+        
+        step += 2
+        keyframe_list(to_key, 0, 'ty', (keyframes_interval * step))
+        keyframe_list(to_key, 0, 'rx', (keyframes_interval * step))
+        
+        # Rear Pole Vecs
+        to_key = ['left_upperRearLeg_poleVec_ctrl', 'left_upperRearLeg_poleVec_Ctrl', 'left_upperRearLeg_poleVecCtrl']
+        
+        store_step = step
+        keyframe_list(to_key, 0, 'tx', (keyframes_interval * step))
+        
+        step += 2
+        keyframe_list(to_key, 5, 'tx', (keyframes_interval * step))
+        
+        step += 2
+        keyframe_list(to_key, 0, 'tx', (keyframes_interval * step))
+        
+        to_key = ['right_upperRearLeg_poleVec_ctrl', 'right_upperRearLeg_poleVec_Ctrl', 'right_upperRearLeg_poleVecCtrl']
+        step = store_step
+        keyframe_list(to_key, 0, 'tx', (keyframes_interval * step))
+        
+        step += 2
+        keyframe_list(to_key, -5, 'tx', (keyframes_interval * step))
+        
+        step += 2
+        keyframe_list(to_key, 0, 'tx', (keyframes_interval * step))
+        
+        to_key = ['left_lowerRearLeg_poleVec_ctrl', 'left_lowerRearLeg_poleVec_Ctrl', 'left_lowerRearLeg_poleVecCtrl']
+        
+        store_step = step
+        keyframe_list(to_key, 0, 'tx', (keyframes_interval * step))
+        
+        step += 2
+        keyframe_list(to_key, 5, 'tx', (keyframes_interval * step))
+        
+        step += 2
+        keyframe_list(to_key, 0, 'tx', (keyframes_interval * step))
+        
+        to_key = ['right_lowerRearLeg_poleVec_ctrl', 'right_lowerRearLeg_poleVec_Ctrl', 'right_lowerRearLeg_poleVecCtrl']
+        step = store_step
+        keyframe_list(to_key, 0, 'tx', (keyframes_interval * step))
+        
+        step += 2
+        keyframe_list(to_key, -5, 'tx', (keyframes_interval * step))
+        
+        step += 2
+        keyframe_list(to_key, 0, 'tx', (keyframes_interval * step))
+        
+        to_key = ['left_rearLeg_IK_ctrl', 'left_rearLeg_IK_Ctrl', 'left_rearLeg_IKctrl',\
+                  'right_rearLeg_IK_ctrl', 'right_rearLeg_IK_Ctrl', 'right_rearLeg_IKctrl',]
+        
+        # Heel
+        keyframe_list(to_key, 0, 'heelRoll', (keyframes_interval * step))
+        keyframe_list(to_key, 0, 'heelroll', (keyframes_interval * step))
+        keyframe_list(to_key, 0, 'Heelroll', (keyframes_interval * step))
+        keyframe_list(to_key, 0, 'HeelRoll', (keyframes_interval * step))
+        keyframe_list(to_key, 0, 'heel_roll', (keyframes_interval * step))
+        
+        step += 1
+        keyframe_list(to_key, 10, 'heelRoll', (keyframes_interval * step))
+        keyframe_list(to_key, 10, 'heelroll', (keyframes_interval * step))
+        keyframe_list(to_key, 10, 'Heelroll', (keyframes_interval * step))
+        keyframe_list(to_key, 10, 'HeelRoll', (keyframes_interval * step))
+        keyframe_list(to_key, 10, 'heel_roll', (keyframes_interval * step))
+        
+        step += 1
+        keyframe_list(to_key, 0, 'heelRoll', (keyframes_interval * step))
+        keyframe_list(to_key, 0, 'heelroll', (keyframes_interval * step))
+        keyframe_list(to_key, 0, 'Heelroll', (keyframes_interval * step))
+        keyframe_list(to_key, 0, 'HeelRoll', (keyframes_interval * step))
+        keyframe_list(to_key, 0, 'heel_roll', (keyframes_interval * step))
+        
+        # Ball
+        keyframe_list(to_key, 0, 'ballRoll', (keyframes_interval * step))
+        keyframe_list(to_key, 0, 'ballroll', (keyframes_interval * step))
+        keyframe_list(to_key, 0, 'Ballroll', (keyframes_interval * step))
+        keyframe_list(to_key, 0, 'BallRoll', (keyframes_interval * step))
+        keyframe_list(to_key, 0, 'ball_roll', (keyframes_interval * step))
+        
+        step += 1
+        keyframe_list(to_key, 10, 'ballRoll', (keyframes_interval * step))
+        keyframe_list(to_key, 10, 'ballroll', (keyframes_interval * step))
+        keyframe_list(to_key, 10, 'Ballroll', (keyframes_interval * step))
+        keyframe_list(to_key, 10, 'BallRoll', (keyframes_interval * step))
+        keyframe_list(to_key, 10, 'ball_roll', (keyframes_interval * step))
+        
+        step += 1
+        keyframe_list(to_key, 0, 'ballRoll', (keyframes_interval * step))
+        keyframe_list(to_key, 0, 'ballroll', (keyframes_interval * step))
+        keyframe_list(to_key, 0, 'Ballroll', (keyframes_interval * step))
+        keyframe_list(to_key, 0, 'BallRoll', (keyframes_interval * step))
+        keyframe_list(to_key, 0, 'ball_roll', (keyframes_interval * step))
+      
+        # Toe
+        keyframe_list(to_key, 0, 'toeRoll', (keyframes_interval * step))
+        keyframe_list(to_key, 0, 'toeroll', (keyframes_interval * step))
+        keyframe_list(to_key, 0, 'Toeroll', (keyframes_interval * step))
+        keyframe_list(to_key, 0, 'ToeRoll', (keyframes_interval * step))
+        keyframe_list(to_key, 0, 'toe_roll', (keyframes_interval * step))
+        
+        step += 1
+        keyframe_list(to_key, 10, 'toeRoll', (keyframes_interval * step))
+        keyframe_list(to_key, 10, 'toeroll', (keyframes_interval * step))
+        keyframe_list(to_key, 10, 'toeroll', (keyframes_interval * step))
+        keyframe_list(to_key, 10, 'ToeRoll', (keyframes_interval * step))
+        keyframe_list(to_key, 10, 'toe_roll', (keyframes_interval * step))
+        
+        step += 1
+        keyframe_list(to_key, 0, 'toeRoll', (keyframes_interval * step))
+        keyframe_list(to_key, 0, 'toeroll', (keyframes_interval * step))
+        keyframe_list(to_key, 0, 'Toeroll', (keyframes_interval * step))
+        keyframe_list(to_key, 0, 'ToeRoll', (keyframes_interval * step))
+        keyframe_list(to_key, 0, 'toe_roll', (keyframes_interval * step))
+        
+        # Toe Wiggle
+        keyframe_list(to_key, 0, 'toeWiggle', (keyframes_interval * step))
+        keyframe_list(to_key, 0, 'toewiggle', (keyframes_interval * step))
+        keyframe_list(to_key, 0, 'Toewiggle', (keyframes_interval * step))
+        keyframe_list(to_key, 0, 'ToeWiggle', (keyframes_interval * step))
+        keyframe_list(to_key, 0, 'toe_wiggle', (keyframes_interval * step))
+        
+        step += 1
+        keyframe_list(to_key, 10, 'toeWiggle', (keyframes_interval * step))
+        keyframe_list(to_key, 10, 'toewiggle', (keyframes_interval * step))
+        keyframe_list(to_key, 10, 'Toewiggle', (keyframes_interval * step))
+        keyframe_list(to_key, 10, 'ToeWiggle', (keyframes_interval * step))
+        keyframe_list(to_key, 10, 'toe_wiggle', (keyframes_interval * step))
+        
+        step += 1
+        keyframe_list(to_key, -10, 'toeWiggle', (keyframes_interval * step))
+        keyframe_list(to_key, -10, 'toewiggle', (keyframes_interval * step))
+        keyframe_list(to_key, -10, 'Toewiggle', (keyframes_interval * step))
+        keyframe_list(to_key, -10, 'ToeWiggle', (keyframes_interval * step))
+        keyframe_list(to_key, -10, 'toe_wiggle', (keyframes_interval * step))
+        
+        step += 1
+        keyframe_list(to_key, 0, 'toeWiggle', (keyframes_interval * step))
+        keyframe_list(to_key, 0, 'toewiggle', (keyframes_interval * step))
+        keyframe_list(to_key, 0, 'Toewiggle', (keyframes_interval * step))
+        keyframe_list(to_key, 0, 'ToeWiggle', (keyframes_interval * step))
+        keyframe_list(to_key, 0, 'toe_wiggle', (keyframes_interval * step))
+
+
+        # Adjust Size of the timeline
+        cmds.playbackOptions(minTime=0, max = (keyframes_interval * step))
+        
+        
         # No Selection
         cmds.select(clear=True)
         
@@ -1597,126 +1610,151 @@ def controls_side_ui_connection():
         delete_all_keyframes()
         reset_transforms()
         
-        cmds.button('check_btn_controls_side_ui_connection', e=True, l='Check', bgc=[.5,.7,.5], ann='0')
+        cmds.button('check_btn_front_and_rear_legs', e=True, l='Check', bgc=[.5,.7,.5], ann='0')
         cmds.play(state=False)
         cmds.currentTime(0)
         # No Selection
         cmds.select(clear=True)
-    
-def blend_shapes_deformers():
-    '''Checks Lower body, legs and feet'''
+
+def spine_and_others_controls():
+    '''Checks Legs'''
     
     # Reset other buttons
     for item in gt_grading_components:
         item_id = gt_grading_components.get(item)[0].lower().replace(" & ","_").replace(" ","_").replace("-","_").replace(",","").replace(":","")
-        if 'blend_shapes_deformers' not in item_id:
+        if 'spine_and_others_controls' not in item_id:
             cmds.button('check_btn_' + item_id, e=True, l='Check', bgc=[.5,.7,.5], ann='0')
     delete_all_keyframes()
     reset_transforms()
     
     # Check Button Status
-    button_status = int(cmds.button('check_btn_blend_shapes_deformers', q=True, ann=True))
+    button_status = int(cmds.button('check_btn_spine_and_others_controls', q=True, ann=True))
     if not button_status:
-        
         # Change button to stop and update its status
-        cmds.button('check_btn_blend_shapes_deformers', e=True, l='Stop', bgc=[.5,.2,.2], ann='1')
+        cmds.button('check_btn_spine_and_others_controls', e=True, l='Stop', bgc=[.5,.2,.2], ann='1')
         
         # Unsubdivide Meshes
         unsubdivide_geometries()
         
-        
         # Reset Time
         cmds.currentTime(0)
         
-        # Adjust Size of the timeline
+        # Grap Speed from Settings
         keyframes_interval = gt_grading_settings.get('keyframes_interval')
-        cmds.playbackOptions(minTime=0, max = (keyframes_interval * 34))
+        
+        
                     
-        # Focus On Head Area
-        frame_object('head_Jnt')
-        frame_object('head_jnt')
-        frame_object('head_jnt')
-        
-        # Try to hide eye controls
-        to_key = ['main_eye_Ctrl', 'main_eye_ctrl', 'main_eyeCtrl']
-        for obj in to_key:
-            if cmds.objExists(obj):
-                try:
-                    cmds.setAttr(obj + '.v', 0)
-                except:
-                    pass
-        
-        # Eyes
-        to_key = ['right_eyelid_close_Ctrl', 'right_eyelid_close_ctrl', 'right_eyelid_closeCtrl','left_eyelid_close_Ctrl', 'left_eyelid_close_ctrl', 'left_eyelid_closeCtrl']
-        # TY
-        keyframe_list(to_key, 0, 'translateY', 0)
-        keyframe_list(to_key, -10, 'translateY', (keyframes_interval * 2))
-        keyframe_list(to_key, -10, 'translateY', (keyframes_interval * 6))
-        keyframe_list(to_key, 0, 'translateY', (keyframes_interval * 8))
-        
+        # Focus On Desired Area
+        frame_object('panther_body_geo')
 
-        # TX
-        to_key = ['right_lipCorner_Ctrl', 'right_lipCorner_ctrl', 'right_lipCornerCtrl']
-        keyframe_list(to_key, 0, 'translateX', 0)
-        keyframe_list(to_key, 5, 'translateX', (keyframes_interval * 2))
-        keyframe_list(to_key, 5, 'translateX', (keyframes_interval * 6))
-        keyframe_list(to_key, 0, 'translateX', (keyframes_interval * 8))
-        to_key = ['left_lipCorner_Ctrl', 'left_lipCorner_ctrl', 'left_lipCornerCtrl']
-        keyframe_list(to_key, 0, 'translateX', 0)
-        keyframe_list(to_key, -5, 'translateX', (keyframes_interval * 2))
-        keyframe_list(to_key, -5, 'translateX', (keyframes_interval * 6))
-        keyframe_list(to_key, 0, 'translateX', (keyframes_interval * 8))
         
-     
-        # Head
-        to_key = ['head_Ctrl', 'head_ctrl', 'headCtrl']
-        # RX
-        keyframe_list(to_key, 0, 'rx', (keyframes_interval * 6))
-        keyframe_list(to_key, -90, 'rx', (keyframes_interval * 8))
-        keyframe_list(to_key, 90, 'rx', (keyframes_interval * 10))
-        keyframe_list(to_key, 0, 'rx', (keyframes_interval * 12))
+        # Chest
+        to_key = ['chest_ik_ctrl', 'chest_ik_Ctrl', 'chest_ikCtrl']
+        step = 0
+        keyframe_list(to_key, 0, 'ty', 0)
+        keyframe_list(to_key, 0, 'rx', 0)
+        step += 1
+        keyframe_list(to_key, -3, 'ty', (keyframes_interval * step))
+        keyframe_list(to_key, -5, 'rx', (keyframes_interval * step))
+        step += 1
+        keyframe_list(to_key, 0, 'ty', (keyframes_interval * step))
+        keyframe_list(to_key, 0, 'rx', (keyframes_interval * step))
         
-        # Extra for squash stretch
-        keyframe_list(to_key, 0, 'rx', (keyframes_interval * 23))
-        keyframe_list(to_key, 30, 'rx', (keyframes_interval * 25))
-        keyframe_list(to_key, 30, 'rx', (keyframes_interval * 30))
-        keyframe_list(to_key, 0, 'rx', (keyframes_interval * 32))
-        
-        # RY
-        keyframe_list(to_key, 0, 'ry', (keyframes_interval * 12))
-        keyframe_list(to_key, -45, 'ry', (keyframes_interval * 14))
-        keyframe_list(to_key, 45, 'ry', (keyframes_interval * 16))
-        keyframe_list(to_key, 0, 'ry', (keyframes_interval * 18))
-        
-        # Squash Stretch
-        to_key = ['head_squashStretch_Ctrl', 'head_squashStretch_ctrl', 'head_squashStretchCtrl']
-        # TY
-        keyframe_list(to_key, 0, 'ty', (keyframes_interval * 17))
-        keyframe_list(to_key, 5, 'ty', (keyframes_interval * 19))
-        keyframe_list(to_key, -5, 'ty', (keyframes_interval * 21))
-        keyframe_list(to_key, 0, 'ty', (keyframes_interval * 23))
-        
-        # TX
-        keyframe_list(to_key, 0, 'tx', (keyframes_interval * 17))
-        keyframe_list(to_key, -5, 'tx', (keyframes_interval * 19))
-        keyframe_list(to_key, 5, 'tx', (keyframes_interval * 21))
-        keyframe_list(to_key, 0, 'tx', (keyframes_interval * 23))
-        
-        # TY
-        keyframe_list(to_key, 0, 'ty', (keyframes_interval * 24))
-        keyframe_list(to_key, 5, 'ty', (keyframes_interval * 26))
-        keyframe_list(to_key, -5, 'ty', (keyframes_interval * 28))
-        keyframe_list(to_key, 0, 'ty', (keyframes_interval * 30))
-        
-        # TX
-        keyframe_list(to_key, 0, 'tx', (keyframes_interval * 24))
-        keyframe_list(to_key, -5, 'tx', (keyframes_interval * 26))
-        keyframe_list(to_key, 5, 'tx', (keyframes_interval * 28))
-        keyframe_list(to_key, 0, 'tx', (keyframes_interval * 30))
-     
-        # Open Shape Editor
-        mel.eval('ShapeEditor')
+        # Abdomen
+        to_key = ['abdomen_ik_ctrl', 'abdomen_ik_Ctrl', 'abdomen_ikCtrl']
 
+        keyframe_list(to_key, 0, 'ty', (keyframes_interval * step))
+        step += 1
+        keyframe_list(to_key, 2, 'ty', (keyframes_interval * step))
+        step += 1
+        keyframe_list(to_key, -2, 'ty', (keyframes_interval * step))
+        step += 1
+        keyframe_list(to_key, 0, 'ty', (keyframes_interval * step))
+        
+        # Hip
+        to_key = ['hip_ik_ctrl', 'hip_ik_Ctrl', 'hip_ikCtrl']
+
+        keyframe_list(to_key, 0, 'ty', (keyframes_interval * step))
+        keyframe_list(to_key, 0, 'rx', (keyframes_interval * step))
+        step += 1
+        keyframe_list(to_key, -2, 'ty', (keyframes_interval * step))
+        keyframe_list(to_key, -15, 'rx', (keyframes_interval * step))
+        step += 1
+        keyframe_list(to_key, 0, 'ty', (keyframes_interval * step))
+        keyframe_list(to_key, 0, 'rx', (keyframes_interval * step))
+
+        # Neck
+        to_key_neck = ['head_ctrl', 'head_Ctrl', 'headCtrl',\
+                  'neckBase_ctrl', 'neckBase_Ctrl', 'neckBaseCtrl']
+                  
+        to_key_ears = ['right_ear_ctrl', 'right_ear_Ctrl', 'right_earCtrl',\
+                       'left_ear_ctrl', 'left_ear_Ctrl', 'left_earCtrl']
+                       
+        to_key_jaw = ['jawPivot_ctrl', 'jawPivot_Ctrl', 'jawPivotCtrl']
+        
+        to_key_eyes = ['main_eye_ctrl', 'main_eye_Ctrl', 'main_eyeCtrl']
+        
+        to_key_nose = ['nose_ctrl', 'nose_Ctrl', 'noseCtrl']
+        
+        to_key_direction = ['direction_hip_ctrl', 'direction_hip_Ctrl', 'direction_hipCtrl',\
+                            'direction_ctrl', 'direction_Ctrl', 'directionCtrl']
+                            
+        to_key_main = ['main_ctrl', 'main_Ctrl', 'mainCtrl']
+
+        keyframe_list(to_key_neck, 0, 'rz', (keyframes_interval * step))
+        keyframe_list(to_key_ears, 0, 'rz', (keyframes_interval * step))
+        keyframe_list(to_key_jaw, 0, 'rz', (keyframes_interval * step))
+        step += 2
+        keyframe_list(to_key_neck, 3, 'rz', (keyframes_interval * step))
+        keyframe_list(to_key_ears, -30, 'rz', (keyframes_interval * step))
+        keyframe_list(to_key_jaw, -25, 'rz', (keyframes_interval * step))
+        step += 2
+        keyframe_list(to_key_neck, 3, 'rz', (keyframes_interval * step))
+        keyframe_list(to_key_ears, 30, 'rz', (keyframes_interval * step))
+        keyframe_list(to_key_jaw, 0, 'rz', (keyframes_interval * step))
+        step += 2
+        keyframe_list(to_key_neck, 0, 'rz', (keyframes_interval * step))
+        keyframe_list(to_key_ears, 0, 'rz', (keyframes_interval * step))
+        keyframe_list(to_key_jaw, 0, 'rz', (keyframes_interval * step))
+        step += 2
+        keyframe_list(to_key_jaw, -25, 'rz', (keyframes_interval * step))
+        keyframe_list(to_key_eyes, 0, 'ty', (keyframes_interval * step))
+        step += 2
+        keyframe_list(to_key_jaw, 0, 'rz', (keyframes_interval * step))
+        keyframe_list(to_key_eyes, -2, 'ty', (keyframes_interval * step))
+        step += 2
+        keyframe_list(to_key_eyes, 2, 'ty', (keyframes_interval * step))
+        step += 1
+        keyframe_list(to_key_eyes, 0, 'ty', (keyframes_interval * step))
+        keyframe_list(to_key_nose, 0, 'rz', (keyframes_interval * step))
+        step += 1
+        keyframe_list(to_key_nose, -30, 'rz', (keyframes_interval * step))
+        step += 2
+        keyframe_list(to_key_nose, 0, 'rz', (keyframes_interval * step))
+        keyframe_list(to_key_direction, 0, 'rz', (keyframes_interval * step))
+        keyframe_list(to_key_direction, 0, 'ty', (keyframes_interval * step))
+        step += 1
+        keyframe_list(to_key_direction, -15, 'rz', (keyframes_interval * step))
+        keyframe_list(to_key_direction, -2, 'ty', (keyframes_interval * step))
+        step += 2
+        keyframe_list(to_key_direction, 15, 'rz', (keyframes_interval * step))
+        step += 2
+        keyframe_list(to_key_direction, 0, 'rz', (keyframes_interval * step))
+        keyframe_list(to_key_direction, 0, 'ty', (keyframes_interval * step))
+        keyframe_list(to_key_main, 0, 'tz', (keyframes_interval * step))
+        keyframe_list(to_key_main, 0, 'rx', (keyframes_interval * step))
+        step += 2
+        keyframe_list(to_key_main, -15, 'tz', (keyframes_interval * step))
+        keyframe_list(to_key_main, -15, 'rx', (keyframes_interval * step))
+        step += 2
+        keyframe_list(to_key_main, 0, 'tz', (keyframes_interval * step))
+        keyframe_list(to_key_main, 0, 'rx', (keyframes_interval * step))
+  
+
+        # Adjust Size of the timeline
+        cmds.playbackOptions(minTime=0, max = (keyframes_interval * step))
+        
+        
         # No Selection
         cmds.select(clear=True)
         
@@ -1724,23 +1762,184 @@ def blend_shapes_deformers():
         cmds.PlaybackForward()
  
     else:
-        # Try to unhide eye controls
-        to_key = ['main_eye_Ctrl', 'main_eye_ctrl', 'main_eyeCtrl']
-        for obj in to_key:
-            if cmds.objExists(obj):
-                try:
-                    cmds.setAttr(obj + '.v', 1)
-                except:
-                    pass
         # Kill Keys
         delete_all_keyframes()
         reset_transforms()
-        # Reset Button
-        cmds.button('check_btn_blend_shapes_deformers', e=True, l='Check', bgc=[.5,.7,.5], ann='0')
+        
+        cmds.button('check_btn_spine_and_others_controls', e=True, l='Check', bgc=[.5,.7,.5], ann='0')
         cmds.play(state=False)
         cmds.currentTime(0)
         # No Selection
         cmds.select(clear=True)
+
+
+
+def skin_weights___deformation():
+    '''Checks Legs'''
+    
+    # Reset other buttons
+    for item in gt_grading_components:
+        item_id = gt_grading_components.get(item)[0].lower().replace(" & ","_").replace(" ","_").replace("-","_").replace(",","").replace(":","")
+        if 'skin_weights___deformation' not in item_id:
+            cmds.button('check_btn_' + item_id, e=True, l='Check', bgc=[.5,.7,.5], ann='0')
+    delete_all_keyframes()
+    reset_transforms()
+    
+    # Check Button Status
+    button_status = int(cmds.button('check_btn_skin_weights___deformation', q=True, ann=True))
+    if not button_status:
+        # Change button to stop and update its status
+        cmds.button('check_btn_skin_weights___deformation', e=True, l='Stop', bgc=[.5,.2,.2], ann='1')
+        
+        # Unsubdivide Meshes
+        unsubdivide_geometries()
+        
+        # Reset Time
+        cmds.currentTime(0)
+        
+        # Grap Speed from Settings
+        keyframes_interval = gt_grading_settings.get('keyframes_interval')
+        
+        
+                    
+        # Focus On Desired Area
+        frame_object('panther_body_geo')
+
+        
+               
+        # Front Leg
+        to_key = ['left_frontLeg_IK_ctrl', 'left_frontLeg_IK_Ctrl', 'left_frontLeg_IKctrl',\
+                  'right_frontLeg_IK_ctrl', 'right_frontLeg_IK_Ctrl', 'right_frontLeg_IKctrl',]
+                  
+        to_key_jaw = ['jawPivot_ctrl', 'jawPivot_Ctrl', 'jawPivotCtrl',\
+                      'jaw_ctrl', 'jaw_Ctrl', 'jawCtrl',]
+                  
+        to_key_ears = ['right_ear_ctrl', 'right_ear_Ctrl', 'right_earCtrl',\
+                       'left_ear_ctrl', 'left_ear_Ctrl', 'left_earCtrl']
+                  
+        to_key_hip = ['hip_ik_ctrl', 'hip_ik_Ctrl', 'hip_ikCtrl']
+        
+        to_key_rear_right = ['right_rearLeg_IK_ctrl', 'right_rearLeg_IK_Ctrl', 'right_rearLeg_IKctrl',]
+                            
+        to_key_rear_left = ['left_rearLeg_IK_ctrl', 'left_rearLeg_IK_Ctrl', 'left_rearLeg_IKctrl',]
+        
+        to_key_neck = ['head_ctrl', 'head_Ctrl', 'headCtrl',\
+                  'neckBase_ctrl', 'neckBase_Ctrl', 'neckBaseCtrl']
+                  
+        to_key_direction = ['direction_hip_ctrl', 'direction_hip_Ctrl', 'direction_hipCtrl',\
+                            'direction_ctrl', 'direction_Ctrl', 'directionCtrl']
+        
+                  
+        step = 0
+        keyframe_list(to_key, 0, 'ty', 0)
+        keyframe_list(to_key, 0, 'tz', 0)
+        keyframe_list(to_key, 0, 'rx', 0)
+        keyframe_list(to_key_jaw, 0, 'rz', 0)
+        keyframe_list(to_key_ears, 0, 'rz', 0)
+        step += 2
+        keyframe_list(to_key, 3, 'ty', (keyframes_interval * step))
+        keyframe_list(to_key, 5, 'tz', (keyframes_interval * step))
+        keyframe_list(to_key, -70, 'rx', (keyframes_interval * step))
+        keyframe_list(to_key_jaw, -35, 'rz', (keyframes_interval * step))
+        keyframe_list(to_key_ears, -35, 'rz', (keyframes_interval * step))
+        step += 10
+        keyframe_list(to_key, 3, 'ty', (keyframes_interval * step))
+        keyframe_list(to_key, 5, 'tz', (keyframes_interval * step))
+        keyframe_list(to_key, 70, 'rx', (keyframes_interval * step))
+        keyframe_list(to_key_jaw, 0, 'rz', (keyframes_interval * step))
+        keyframe_list(to_key_ears, 0, 'rz', (keyframes_interval * step))
+        step += 2
+        keyframe_list(to_key, 0, 'ty', (keyframes_interval * step))
+        keyframe_list(to_key, 0, 'tz', (keyframes_interval * step))
+        keyframe_list(to_key, 0, 'rx', (keyframes_interval * step))
+        keyframe_list(to_key_jaw, 0, 'rz', (keyframes_interval * step))
+        keyframe_list(to_key_ears, 0, 'rz', (keyframes_interval * step))
+        
+        keyframe_list(to_key_hip, 0, 'rx', (keyframes_interval * step))
+        keyframe_list(to_key_hip, 0, 'ty', (keyframes_interval * step))
+        keyframe_list(to_key_rear_left, 0, 'tx', (keyframes_interval * step))
+        keyframe_list(to_key_rear_left, 0, 'ty', (keyframes_interval * step))
+        keyframe_list(to_key_rear_left, 0, 'tz', (keyframes_interval * step))
+        keyframe_list(to_key_rear_right, 0, 'tx', (keyframes_interval * step))
+        keyframe_list(to_key_rear_right, 0, 'ty', (keyframes_interval * step))
+        keyframe_list(to_key_rear_right, 0, 'tz', (keyframes_interval * step))
+        keyframe_list(to_key_rear_right, 0, 'rx', (keyframes_interval * step))
+        keyframe_list(to_key_rear_left, 0, 'rx', (keyframes_interval * step))
+        keyframe_list(to_key_neck, 0, 'rx', (keyframes_interval * step))
+        keyframe_list(to_key_direction, 0, 'rx', (keyframes_interval * step))
+        keyframe_list(to_key_neck, 0, 'rz', (keyframes_interval * step))
+        keyframe_list(to_key_jaw, 0, 'rz', (keyframes_interval * step))
+        
+        step += 2
+        keyframe_list(to_key_hip, -2.2, 'rx', (keyframes_interval * step))
+        keyframe_list(to_key_hip, -2, 'ty', (keyframes_interval * step))
+        keyframe_list(to_key_rear_left, .8, 'tx', (keyframes_interval * step))
+        keyframe_list(to_key_rear_left, 1.5, 'ty', (keyframes_interval * step))
+        keyframe_list(to_key_rear_left, -3, 'tz', (keyframes_interval * step))
+        keyframe_list(to_key_rear_right, -.8, 'tx', (keyframes_interval * step))
+        keyframe_list(to_key_rear_right, 1.5, 'ty', (keyframes_interval * step))
+        keyframe_list(to_key_rear_right, -3, 'tz', (keyframes_interval * step))
+        keyframe_list(to_key_rear_right, 20, 'rx', (keyframes_interval * step))
+        keyframe_list(to_key_rear_left, 20, 'rx', (keyframes_interval * step))
+        keyframe_list(to_key_neck, 25, 'rx', (keyframes_interval * step))
+        keyframe_list(to_key_direction, 13, 'rx', (keyframes_interval * step))
+        keyframe_list(to_key_neck, 25, 'rz', (keyframes_interval * step))
+        keyframe_list(to_key_jaw, -30, 'rz', (keyframes_interval * step))
+        
+        step += 10
+        keyframe_list(to_key_hip, -2.2, 'rx', (keyframes_interval * step))
+        keyframe_list(to_key_hip, -2, 'ty', (keyframes_interval * step))
+        keyframe_list(to_key_rear_left, .8, 'tx', (keyframes_interval * step))
+        keyframe_list(to_key_rear_left, 1.5, 'ty', (keyframes_interval * step))
+        keyframe_list(to_key_rear_left, -3, 'tz', (keyframes_interval * step))
+        keyframe_list(to_key_rear_right, -.8, 'tx', (keyframes_interval * step))
+        keyframe_list(to_key_rear_right, 1.5, 'ty', (keyframes_interval * step))
+        keyframe_list(to_key_rear_right, -3, 'tz', (keyframes_interval * step))
+        keyframe_list(to_key_rear_right, 20, 'rx', (keyframes_interval * step))
+        keyframe_list(to_key_rear_left, 20, 'rx', (keyframes_interval * step))
+        keyframe_list(to_key_neck, 25, 'rx', (keyframes_interval * step))
+        keyframe_list(to_key_direction, 13, 'rx', (keyframes_interval * step))
+        keyframe_list(to_key_neck, 25, 'rz', (keyframes_interval * step))
+        keyframe_list(to_key_jaw, -30, 'rz', (keyframes_interval * step))
+        
+        step += 2
+        keyframe_list(to_key_hip, 0, 'rx', (keyframes_interval * step))
+        keyframe_list(to_key_hip, 0, 'ty', (keyframes_interval * step))
+        keyframe_list(to_key_rear_left, 0, 'tx', (keyframes_interval * step))
+        keyframe_list(to_key_rear_left, 0, 'ty', (keyframes_interval * step))
+        keyframe_list(to_key_rear_left, 0, 'tz', (keyframes_interval * step))
+        keyframe_list(to_key_rear_right, 0, 'tx', (keyframes_interval * step))
+        keyframe_list(to_key_rear_right, 0, 'ty', (keyframes_interval * step))
+        keyframe_list(to_key_rear_right, 0, 'tz', (keyframes_interval * step))
+        keyframe_list(to_key_rear_right, 0, 'rx', (keyframes_interval * step))
+        keyframe_list(to_key_rear_left, 0, 'rx', (keyframes_interval * step))
+        keyframe_list(to_key_neck, 0, 'rx', (keyframes_interval * step))
+        keyframe_list(to_key_direction, 0, 'rx', (keyframes_interval * step))
+        keyframe_list(to_key_neck, 0, 'rz', (keyframes_interval * step))
+        keyframe_list(to_key_jaw, 0, 'rz', (keyframes_interval * step))
+        
+
+        # Adjust Size of the timeline
+        cmds.playbackOptions(minTime=0, max = (keyframes_interval * step))
+        
+        # No Selection
+        cmds.select(clear=True)
+        
+        # Play Animation
+        cmds.PlaybackForward()
+ 
+    else:
+        # Kill Keys
+        delete_all_keyframes()
+        reset_transforms()
+        
+        cmds.button('check_btn_skin_weights___deformation', e=True, l='Check', bgc=[.5,.7,.5], ann='0')
+        cmds.play(state=False)
+        cmds.currentTime(0)
+        # No Selection
+        cmds.select(clear=True)
+
+
     
 
 def is_point_inside_mesh(mesh, point=(0.0, 0.0, 0.0), ray_dir=(0.0, 0.0, 1.0)):
@@ -1801,43 +2000,6 @@ def get_short_name(obj):
     
         
 
-
-def extract_brute_force_dict(is_joint=True, include_vec_scale=False):
-    '''
-    Internal Function used to generate a dictionary that is later used to automatically change the name of objects.
-    To use, select the objects you want to have in your dictionary, then run it. (Output goes to the script editor.)
-    '''
-    sel = cmds.ls(selection=True)
-
-    for obj in sel:
-        extraction_string = "'" + obj + "' : [ "
-        position = cmds.getAttr(obj + '.translate')
-
-        extraction_string += "[{:.{}f}".format( position[0][0], 3 )
-        extraction_string += ", {:.{}f}".format( position[0][1], 3 )
-        extraction_string += ", {:.{}f}], ".format( position[0][2], 3 )
-        
-        if is_joint:
-            orientation = cmds.getAttr(obj + '.jointOrient')
-        else: 
-            orientation = cmds.getAttr(obj + '.rotate')
-        
-        extraction_string += "[{:.{}f}".format( orientation[0][0], 3 )
-        extraction_string += ", {:.{}f}".format( orientation[0][1], 3 )
-        extraction_string += ", {:.{}f}], ".format( orientation[0][2], 3 )
-        
-        scale = cmds.getAttr(obj + '.scale')
-        if include_vec_scale:
-            extraction_string += '1, ('
-            extraction_string += "{:.{}f}".format( scale[0][0], 3 )
-            extraction_string += ", {:.{}f}".format( scale[0][1], 3 )
-            extraction_string += ", {:.{}f})],".format( scale[0][2], 3 )
-        else:
-            extraction_string += " {:.{}f}".format( scale[0][0], 3 ) + '],'
-        
-        print(extraction_string.replace('ray_tracing_obj_', ''))
-
-
 def change_obj_color(obj, rgb_color=(1,1,1)):
     '''
     Changes the color of an object by changing the drawing override settings
@@ -1879,7 +2041,6 @@ def search_delete_temp_meshes(starts_with):
             pass
 
 
-
 def delete_all_namespaces():
     '''Deletes all namespaces in the scene'''
     cmds.undoInfo(openChunk=True, chunkName='Delete all namespaces')
@@ -1915,6 +2076,44 @@ def delete_all_display_layers():
     except:
         pass
 
+
+def extract_brute_force_dict(is_joint=True, include_vec_scale=False):
+    '''
+    Internal Function used to generate a dictionary that is later used to automatically change the name of objects.
+    To use, select the objects you want to have in your dictionary, then run it. (Output goes to the script editor.)
+    '''
+    sel = cmds.ls(selection=True)
+
+    for obj in sel:
+        extraction_string = "'" + obj + "' : [ "
+        position = cmds.getAttr(obj + '.translate')
+
+        extraction_string += "[{:.{}f}".format( position[0][0], 3 )
+        extraction_string += ", {:.{}f}".format( position[0][1], 3 )
+        extraction_string += ", {:.{}f}], ".format( position[0][2], 3 )
+        
+        if is_joint:
+            orientation = cmds.getAttr(obj + '.jointOrient')
+        else: 
+            orientation = cmds.getAttr(obj + '.rotate')
+        
+        extraction_string += "[{:.{}f}".format( orientation[0][0], 3 )
+        extraction_string += ", {:.{}f}".format( orientation[0][1], 3 )
+        extraction_string += ", {:.{}f}], ".format( orientation[0][2], 3 )
+        
+        scale = cmds.getAttr(obj + '.scale')
+        if include_vec_scale:
+            extraction_string += '('
+            extraction_string += "{:.{}f}".format( scale[0][0], 3 )
+            extraction_string += ", {:.{}f}".format( scale[0][1], 3 )
+            extraction_string += ", {:.{}f})],".format( scale[0][2], 3 )
+        else:
+            extraction_string += " {:.{}f}".format( scale[0][0], 3 ) + '],'
+        
+        print(extraction_string.replace('ray_tracing_obj_', ''))
+
+
 #Build GUI
 if __name__ == '__main__':
     build_gui_gt_grader_script()
+    #extract_brute_force_dict(is_joint=False, include_vec_scale=True)
