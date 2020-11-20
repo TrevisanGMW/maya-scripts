@@ -6,6 +6,7 @@
  
  1.1 - 2020-11-19
  Updated colors and title text
+ Finished writting the check functions
 
 """
 import maya.cmds as cmds
