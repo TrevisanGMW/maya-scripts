@@ -17,6 +17,10 @@
  Added a new patch button "delete_all_display_layers"
  Added "delete_all_display_layers" as a common patch
  
+ 1.3 - 2020-11-22
+ Fixed issue with brute force naming crashing with non-unique elements
+ Updated the naming convention
+ 
  To Do:
     Update nonunique elements function
     Update name of the side ui controls
@@ -51,7 +55,7 @@ script_name = 'GT - Grading Script'
 re_file_name = re.compile(r'(^\dD\d{3}\_\w+\_)(FacialRig|FacialRigging|Facial_Rig|FaceRig)(_|.)')
 
 # Version
-script_version = '1.2'
+script_version = '1.3'
 
 # Grading Components
 gt_grading_components = { 0 : ['Organization & Functionality', 20],
@@ -129,8 +133,6 @@ brute_force_ctrl_naming_dict = {'main_eye_ctrl' : [ [0.000, 97.160, 18.800], [0.
                                 }
 
 
-
-
 # Keep it here for backwards compatibility 
 ignore_non_uniques = ['effector6', 'left_Hand_IK_Gimbal_CtrlGrp', 'right_foot_Jnt','left_Hand_IK_Gimbal_ctrlGrp', 'right_foot_jnt']
 
@@ -142,7 +144,7 @@ def build_gui_gt_grader_script():
     if cmds.window(window_name, exists=True):
         cmds.deleteUI(window_name, window=True)
 
-    cmds.window(window_name, title= script_name + ' - '+  assignment_name + ' - v' + script_version, mnb=False, mxb=False, s=True)
+    cmds.window(window_name, title= script_name + ' - '+  assignment_name + ' - (v' + script_version + ')', mnb=False, mxb=False, s=True)
     cmds.window(window_name, e=True, s=True, wh=[1,1])
 
     main_column = cmds.columnLayout(p= window_name)
@@ -677,7 +679,7 @@ def build_gui_gt_grader_script():
                         ignore_joint = False
                         if len(brute_force_joint_naming_dict.get(obj)) == 4:
                             for string in brute_force_joint_naming_dict.get(obj)[3]:
-                                if  string in jnt:
+                                if  string in jnt.split('|')[-1]:
                                     ignore_joint = True
                         
                         if is_joint_inside and get_short_name(jnt) != obj and ignore_joint is False:
@@ -718,7 +720,7 @@ def build_gui_gt_grader_script():
                     cmds.xform(ray_tracing_obj, a=True, t=brute_force_ctrl_naming_dict.get(obj)[0] )
                     
                     for crv in all_nurbs_curves:
-                        crv_transform = cmds.listRelatives(crv, allParents=True) or []
+                        crv_transform = cmds.listRelatives(crv, allParents=True, fullPath=True) or []
                         if len(crv_transform) > 0:
                             crv_pos = cmds.xform(crv_transform[0], piv=True , q=True , ws=True)
                             is_crv_inside = is_point_inside_mesh(ray_tracing_obj[0], point=(crv_pos[0],crv_pos[1],crv_pos[2]))
@@ -726,7 +728,7 @@ def build_gui_gt_grader_script():
                             ignore_crv = False
                             if len(brute_force_ctrl_naming_dict.get(obj)) == 4:
                                 for string in brute_force_ctrl_naming_dict.get(obj)[3]:
-                                    if string in crv:
+                                    if string in crv.split('|')[-1]:
                                         ignore_crv = True
                             
                             if is_crv_inside and get_short_name(crv_transform[0]) != obj and ignore_crv is False:
@@ -914,11 +916,10 @@ def build_gui_gt_grader_script():
                 try:
                     jnt_pos = cmds.xform(jnt, piv=True , q=True , ws=True)
                     is_joint_inside = is_point_inside_mesh(ray_tracing_obj[0], point=(jnt_pos[0],jnt_pos[1],jnt_pos[2]))
-                    
                     ignore_joint = False
                     if len(brute_force_joint_naming_dict.get(obj)) == 4:
                         for string in brute_force_joint_naming_dict.get(obj)[3]:
-                            if string in jnt:
+                            if string in jnt.split('|')[-1]:
                                 ignore_joint = True
                     
                     if is_joint_inside and get_short_name(jnt) != obj and ignore_joint is False:
@@ -948,7 +949,7 @@ def build_gui_gt_grader_script():
             
             for crv in all_nurbs_curves:
                 try:
-                    crv_transform = cmds.listRelatives(crv, allParents=True) or []
+                    crv_transform = cmds.listRelatives(crv, allParents=True, fullPath=True) or []
                     if len(crv_transform) > 0:
                         crv_pos = cmds.xform(crv_transform[0], piv=True , q=True , ws=True)
                         is_crv_inside = is_point_inside_mesh(ray_tracing_obj[0], point=(crv_pos[0],crv_pos[1],crv_pos[2]))
@@ -956,7 +957,7 @@ def build_gui_gt_grader_script():
                         ignore_crv = False
                         if len(brute_force_ctrl_naming_dict.get(obj)) == 4:
                             for string in brute_force_ctrl_naming_dict.get(obj)[3]:
-                                if string in crv:
+                                if string in crv.split('|')[-1]:
                                     ignore_crv = True
                         
                         if is_crv_inside and get_short_name(crv_transform[0]) != obj  and ignore_crv is False:
@@ -1817,43 +1818,6 @@ def get_short_name(obj):
     
         
 
-
-def extract_brute_force_dict(is_joint=True, include_vec_scale=False):
-    '''
-    Internal Function used to generate a dictionary that is later used to automatically change the name of objects.
-    To use, select the objects you want to have in your dictionary, then run it. (Output goes to the script editor.)
-    '''
-    sel = cmds.ls(selection=True)
-
-    for obj in sel:
-        extraction_string = "'" + obj + "' : [ "
-        position = cmds.getAttr(obj + '.translate')
-
-        extraction_string += "[{:.{}f}".format( position[0][0], 3 )
-        extraction_string += ", {:.{}f}".format( position[0][1], 3 )
-        extraction_string += ", {:.{}f}], ".format( position[0][2], 3 )
-        
-        if is_joint:
-            orientation = cmds.getAttr(obj + '.jointOrient')
-        else: 
-            orientation = cmds.getAttr(obj + '.rotate')
-        
-        extraction_string += "[{:.{}f}".format( orientation[0][0], 3 )
-        extraction_string += ", {:.{}f}".format( orientation[0][1], 3 )
-        extraction_string += ", {:.{}f}], ".format( orientation[0][2], 3 )
-        
-        scale = cmds.getAttr(obj + '.scale')
-        if include_vec_scale:
-            extraction_string += '1, ('
-            extraction_string += "{:.{}f}".format( scale[0][0], 3 )
-            extraction_string += ", {:.{}f}".format( scale[0][1], 3 )
-            extraction_string += ", {:.{}f})],".format( scale[0][2], 3 )
-        else:
-            extraction_string += " {:.{}f}".format( scale[0][0], 3 ) + '],'
-        
-        print(extraction_string.replace('ray_tracing_obj_', ''))
-
-
 def change_obj_color(obj, rgb_color=(1,1,1)):
     '''
     Changes the color of an object by changing the drawing override settings
@@ -1930,6 +1894,42 @@ def delete_all_display_layers():
                 cmds.delete(layer)
     except:
         pass
+        
+            
+def extract_brute_force_dict(is_joint=True, include_vec_scale=False):
+    '''
+    Internal Function used to generate a dictionary that is later used to automatically change the name of objects.
+    To use, select the objects you want to have in your dictionary, then run it. (Output goes to the script editor.)
+    '''
+    sel = cmds.ls(selection=True)
+
+    for obj in sel:
+        extraction_string = "'" + obj + "' : [ "
+        position = cmds.getAttr(obj + '.translate')
+
+        extraction_string += "[{:.{}f}".format( position[0][0], 3 )
+        extraction_string += ", {:.{}f}".format( position[0][1], 3 )
+        extraction_string += ", {:.{}f}], ".format( position[0][2], 3 )
+        
+        if is_joint:
+            orientation = cmds.getAttr(obj + '.jointOrient')
+        else: 
+            orientation = cmds.getAttr(obj + '.rotate')
+        
+        extraction_string += "[{:.{}f}".format( orientation[0][0], 3 )
+        extraction_string += ", {:.{}f}".format( orientation[0][1], 3 )
+        extraction_string += ", {:.{}f}], ".format( orientation[0][2], 3 )
+        
+        scale = cmds.getAttr(obj + '.scale')
+        if include_vec_scale:
+            extraction_string += '('
+            extraction_string += "{:.{}f}".format( scale[0][0], 3 )
+            extraction_string += ", {:.{}f}".format( scale[0][1], 3 )
+            extraction_string += ", {:.{}f})],".format( scale[0][2], 3 )
+        else:
+            extraction_string += " {:.{}f}".format( scale[0][0], 3 ) + '],'
+        
+        print(extraction_string.replace('ray_tracing_obj_', ''))
 
 #Build GUI
 if __name__ == '__main__':
