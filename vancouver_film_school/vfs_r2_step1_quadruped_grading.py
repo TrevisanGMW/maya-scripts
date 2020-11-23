@@ -7,6 +7,9 @@
  1.1 - 2020-11-19
  Updated colors and title text
  Finished writting the check functions
+ 
+ Todo:
+    Account for different joint orientations when applying animation
 
 """
 import maya.cmds as cmds
