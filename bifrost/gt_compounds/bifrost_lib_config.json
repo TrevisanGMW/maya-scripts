@@ -2,7 +2,7 @@
   "AminoConfigurations": [
     {
       "libraryVersion": "0.0.1",
-      "libraryName": "Miscellaneous",
+      "libraryName": "GT Bifrost",
       "jsonLibs": [
         {
           "path": "compounds",

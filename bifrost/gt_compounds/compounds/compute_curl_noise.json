@@ -1,0 +1,476 @@
+{
+    "header": {
+        "metadata": [
+            {
+                "metaName": "adskFileFormatVersion",
+                "metaValue": "100L"
+            }
+        ]
+    },
+    "dependencies": [
+        {
+            "uri": "file:///Math_types.json"
+        },
+        {
+            "uri": "file:///Math_float.json"
+        },
+        {
+            "uri": "file:///Math_double.json"
+        },
+        {
+            "uri": "file:///Math_long.json"
+        },
+        {
+            "uri": "file:///Math_char.json"
+        },
+        {
+            "uri": "file:///Math_int.json"
+        },
+        {
+            "uri": "file:///Math_short.json"
+        },
+        {
+            "uri": "file:///Math_uchar.json"
+        },
+        {
+            "uri": "file:///Math_uint.json"
+        },
+        {
+            "uri": "file:///Math_ulong.json"
+        },
+        {
+            "uri": "file:///Math_ushort.json"
+        },
+        {
+            "uri": "file:///bifrost_object_i.json"
+        },
+        {
+            "uri": "file:///point_types.json"
+        },
+        {
+            "uri": "file:///Math_bool.json"
+        },
+        {
+            "uri": "file:///Math_constants.json"
+        },
+        {
+            "uri": "file:///Core_Array_array_bounds_impl.json"
+        },
+        {
+            "uri": "file:///Core_Array_array_bounds.json"
+        },
+        {
+            "uri": "file:///Core_Array_sum_array_impl.json"
+        },
+        {
+            "uri": "file:///Core_Array_sum_array.json"
+        },
+        {
+            "uri": "file:///point_nodedefs.json"
+        },
+        {
+            "uri": "file:///CoreArrayOps.json"
+        },
+        {
+            "uri": "file:///bifrost_geometry_query_types.json"
+        },
+        {
+            "uri": "file:///geometry_types.json"
+        },
+        {
+            "uri": "file:///get_property_any.json"
+        },
+        {
+            "uri": "file:///get_property.json"
+        },
+        {
+            "uri": "file:///get_geo_property.json"
+        },
+        {
+            "uri": "file:///get_point_position.json"
+        },
+        {
+            "uri": "file:///Math_conversion.json"
+        },
+        {
+            "uri": "file:///has_property.json"
+        },
+        {
+            "uri": "file:///create_volume_geo_prop.json"
+        },
+        {
+            "uri": "file:///is_a.json"
+        },
+        {
+            "uri": "file:///create_object_from_schema.json"
+        },
+        {
+            "uri": "file:///is_a_mesh.json"
+        },
+        {
+            "uri": "file:///is_a_strands.json"
+        },
+        {
+            "uri": "file:///is_a_points.json"
+        },
+        {
+            "uri": "file:///is_a_volume.json"
+        },
+        {
+            "uri": "file:///get_geo_schema_type.json"
+        },
+        {
+            "uri": "file:///switch_is_a.json"
+        },
+        {
+            "uri": "file:///get_target_component.json"
+        },
+        {
+            "uri": "file:///create_data_geo_prop.json"
+        },
+        {
+            "uri": "file:///set_property_any.json"
+        },
+        {
+            "uri": "file:///set_property.json"
+        },
+        {
+            "uri": "file:///get_geo_component_count.json"
+        },
+        {
+            "uri": "file:///set_geo_property.array.json"
+        },
+        {
+            "uri": "file:///set_geo_property.scalar.json"
+        },
+        {
+            "uri": "file:///set_point_position.json"
+        }
+    ],
+    "namespaces": [],
+    "types": [],
+    "compounds": [
+        {
+            "name": "GT_Compounds::compute_curl_noise",
+            "uriImported": "file:///__duplicateCompoundURIHelper__",
+            "metadata": [
+                {
+                    "metaName": "io_nodes",
+                    "metadata": [
+                        {
+                            "metaName": "io_inodes",
+                            "metadata": [
+                                {
+                                    "metaName": "input",
+                                    "metadata": [
+                                        {
+                                            "metaName": "io_ports",
+                                            "metadata": [
+                                                {
+                                                    "metaName": "Mesh"
+                                                },
+                                                {
+                                                    "metaName": "Frequency"
+                                                },
+                                                {
+                                                    "metaName": "MagXZ"
+                                                },
+                                                {
+                                                    "metaName": "MagY"
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "metaName": "io_onodes",
+                            "metadata": [
+                                {
+                                    "metaName": "output",
+                                    "metadata": [
+                                        {
+                                            "metaName": "io_ports",
+                                            "metadata": [
+                                                {
+                                                    "metaName": "out_geometry"
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ],
+            "ports": [
+                {
+                    "portName": "Mesh",
+                    "portDirection": "input",
+                    "portType": "Amino::Object",
+                    "portDefault": {}
+                },
+                {
+                    "portName": "Frequency",
+                    "portDirection": "input",
+                    "portType": "float",
+                    "portDefault": "0f"
+                },
+                {
+                    "portName": "out_geometry",
+                    "portDirection": "output",
+                    "portType": "Amino::Object"
+                },
+                {
+                    "portName": "MagXZ",
+                    "portDirection": "input",
+                    "portType": "float",
+                    "portDefault": "0f"
+                },
+                {
+                    "portName": "MagY",
+                    "portDirection": "input",
+                    "portType": "float",
+                    "portDefault": "0f"
+                }
+            ],
+            "compoundNodes": [
+                {
+                    "nodeName": "add",
+                    "nodeType": "Core::Math::add",
+                    "multiInPortNames": [
+                        "point_position",
+                        "noise"
+                    ],
+                    "metadata": [
+                        {
+                            "metaName": "DisplayMode",
+                            "metaType": "string",
+                            "metaValue": "2"
+                        },
+                        {
+                            "metaName": "LayoutPos",
+                            "metaType": "string",
+                            "metaValue": "1215.21 420.847"
+                        }
+                    ]
+                },
+                {
+                    "nodeName": "curl_noise",
+                    "nodeType": "Core::Randomization::curl_noise",
+                    "metadata": [
+                        {
+                            "metaName": "DisplayMode",
+                            "metaType": "string",
+                            "metaValue": "2"
+                        },
+                        {
+                            "metaName": "LayoutPos",
+                            "metaType": "string",
+                            "metaValue": "756.023 692.425"
+                        }
+                    ]
+                },
+                {
+                    "nodeName": "get_point_position",
+                    "nodeType": "Geometry::Properties::get_point_position",
+                    "metadata": [
+                        {
+                            "metaName": "DisplayMode",
+                            "metaType": "string",
+                            "metaValue": "2"
+                        },
+                        {
+                            "metaName": "LayoutPos",
+                            "metaType": "string",
+                            "metaValue": "223.6 450.914"
+                        }
+                    ]
+                },
+                {
+                    "nodeName": "multiply",
+                    "nodeType": "Core::Math::multiply",
+                    "multiInPortNames": [
+                        "point_position",
+                        "port"
+                    ],
+                    "metadata": [
+                        {
+                            "metaName": "DisplayMode",
+                            "metaType": "string",
+                            "metaValue": "2"
+                        },
+                        {
+                            "metaName": "LayoutPos",
+                            "metaType": "string",
+                            "metaValue": "468.919 683.47"
+                        }
+                    ]
+                },
+                {
+                    "nodeName": "multiply1",
+                    "nodeType": "Core::Math::multiply",
+                    "multiInPortNames": [
+                        "noise",
+                        "output1"
+                    ],
+                    "metadata": [
+                        {
+                            "metaName": "DisplayMode",
+                            "metaType": "string",
+                            "metaValue": "2"
+                        },
+                        {
+                            "metaName": "LayoutPos",
+                            "metaType": "string",
+                            "metaValue": "1005.26 556.65"
+                        }
+                    ]
+                },
+                {
+                    "nodeName": "set_point_position",
+                    "nodeType": "Geometry::Properties::set_point_position",
+                    "metadata": [
+                        {
+                            "metaName": "DisplayMode",
+                            "metaType": "string",
+                            "metaValue": "2"
+                        },
+                        {
+                            "metaName": "LayoutPos",
+                            "metaType": "string",
+                            "metaValue": "1476.15 81.0491"
+                        }
+                    ]
+                },
+                {
+                    "nodeName": "value",
+                    "valueType": "Math::float3",
+                    "metadata": [
+                        {
+                            "metaName": "valuenode_defaultvalue",
+                            "metaType": "string",
+                            "metaValue": "0"
+                        },
+                        {
+                            "metaName": "valuenode_defaultvalue",
+                            "metaType": "string",
+                            "metaValue": "0"
+                        },
+                        {
+                            "metaName": "valuenode_defaultvalue",
+                            "metaType": "string",
+                            "metaValue": "0"
+                        },
+                        {
+                            "metaName": "valuenode_defaultvalue",
+                            "metaType": "string",
+                            "metaValue": "0"
+                        },
+                        {
+                            "metaName": "valuenode_defaultvalue",
+                            "metaType": "string",
+                            "metaValue": "0"
+                        },
+                        {
+                            "metaName": "valuenode_defaultvalue",
+                            "metaType": "string",
+                            "metaValue": "0"
+                        },
+                        {
+                            "metaName": "DisplayMode",
+                            "metaType": "string",
+                            "metaValue": "2"
+                        },
+                        {
+                            "metaName": "LayoutPos",
+                            "metaType": "string",
+                            "metaValue": "699.856 982.226"
+                        },
+                        {
+                            "metaName": "PortExpandedState",
+                            "metadata": [
+                                {
+                                    "metaName": "value",
+                                    "metaType": "string",
+                                    "metaValue": "1"
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ],
+            "connections": [
+                {
+                    "source": "get_point_position.point_position",
+                    "target": "add.first.point_position"
+                },
+                {
+                    "source": "multiply1.output",
+                    "target": "add.first.noise"
+                },
+                {
+                    "source": "multiply.output",
+                    "target": "curl_noise.position"
+                },
+                {
+                    "source": ".Mesh",
+                    "target": "get_point_position.geometry"
+                },
+                {
+                    "source": "get_point_position.point_position",
+                    "target": "multiply.first.point_position"
+                },
+                {
+                    "source": ".Frequency",
+                    "target": "multiply.first.port"
+                },
+                {
+                    "source": "curl_noise.noise",
+                    "target": "multiply1.first.noise"
+                },
+                {
+                    "source": "value.output",
+                    "target": "multiply1.first.output1"
+                },
+                {
+                    "source": ".Mesh",
+                    "target": "set_point_position.geometry"
+                },
+                {
+                    "source": "add.output",
+                    "target": "set_point_position.positions"
+                },
+                {
+                    "source": "set_point_position.out_geometry",
+                    "target": ".out_geometry"
+                },
+                {
+                    "source": ".MagXZ",
+                    "target": "value.value.x"
+                },
+                {
+                    "source": ".MagY",
+                    "target": "value.value.y"
+                },
+                {
+                    "source": ".MagXZ",
+                    "target": "value.value.z"
+                }
+            ],
+            "values": [
+                {
+                    "valueName": "value.value",
+                    "valueType": "Math::float3",
+                    "value": {
+                        "x": "0f",
+                        "y": "0f",
+                        "z": "0f"
+                    }
+                }
+            ]
+        }
+    ]
+}
