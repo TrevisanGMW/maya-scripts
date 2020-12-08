@@ -6,9 +6,14 @@
 
  For updated versions, check Moodle or my Github.
  
- 1.1 - 2020/08/09
+ 1.1 - 2020-08-09
  Changed the Output Resolution function to accept the expected values in both height and width (to account for portrait and landscape kitchens)
-    
+ 
+ 1.2 - 2020-12-07
+ Updated some UI colors
+ Fixed issue where non-unique objects wouldn't be selected for non-manifold geometry.
+
+ 
 """
 import maya.cmds as cmds
 import maya.mel as mel
@@ -31,7 +36,7 @@ except ImportError:
 script_name = "Modeling 1 - Kitchen Checklist" 
 
 # Version
-script_version = "1.1";
+script_version = "1.2";
 
 # Status Colors
 def_color = 0.3, 0.3, 0.3
@@ -94,9 +99,9 @@ def build_gui_gt_m1_kitchen_checklist():
     cmds.separator(h=14, style='none') # Empty Space
     cmds.rowColumnLayout(nc=3, cw=[(1, 10), (2, 240), (3, 50)], cs=[(1, 10), (2, 0), (3, 0)], p=main_column)
 
-    cmds.text(" ", bgc=[0,.5,0])
-    cmds.text(script_name, bgc=[0,.5,0],  fn="boldLabelFont", align="left")
-    cmds.button( l ="Help", bgc=(0, .5, 0), c=lambda x:build_gui_help_gt_m1_kitchen_checklist())
+    cmds.text(" ", bgc=[.4,.4,.4])
+    cmds.text(script_name, bgc=[.4,.4,.4],  fn="boldLabelFont", align="left")
+    cmds.button( l ="Help", bgc=(.4, .4, .4), c=lambda x:build_gui_help_gt_m1_kitchen_checklist())
     cmds.separator(h=10, style='none', p=main_column) # Empty Space
     cmds.rowColumnLayout(nc=1, cw=[(1, 300)], cs=[(1,10)], p=main_column) # For the separator
     cmds.separator(h=8)
@@ -1128,7 +1133,7 @@ def check_non_manifold_geometry():
     nonmanifold_geo = []
     nonmanifold_verts = []
     
-    all_geo = cmds.ls(type='mesh')
+    all_geo = cmds.ls(type='mesh', long=True)
    
     for geo in all_geo:
         obj_non_manifold_verts = cmds.polyInfo(geo, nmv=True) or []
@@ -1176,7 +1181,7 @@ def check_non_manifold_geometry():
     if issues_found > 0:
         string_status = str(issues_found) + ' ' + issue_string + ' found.\n'
         for obj in nonmanifold_geo: 
-            string_status = string_status + '"' + obj +  '"  has non-manifold geometry.\n'
+            string_status = string_status + '"' + get_short_name(obj) +  '"  has non-manifold geometry.\n'
         string_status = string_status[:-1]
     else: 
         string_status = str(issues_found) + ' issues found. No non-manifold geometry found in your scene.'
@@ -1673,6 +1678,22 @@ def check_textures_color_space():
  
     
 # Checklist Functions End Here ===================================================================
+
+
+def get_short_name(obj):
+        '''
+        Get the name of the objects without its path (Maya returns full path if name is not unique)
+
+                Parameters:
+                        obj (string) - object to extract short name
+        '''
+        if obj == '':
+            return ''
+        split_path = obj.split('|')
+        if len(split_path) >= 1:
+            short_name = split_path[len(split_path)-1]
+        return short_name
+
 
 
 def print_message(message, as_warning=False, as_heads_up_message=False):
