@@ -1,5 +1,5 @@
 '''
-An example of how to geenrate user interface using Python and Maya commands (cmds)
+An example of how to generate a user interface using Python and Maya commands (cmds)
 For more documentation go to "Maya > Help > Maya Scripting Reference > Python Command Reference" or visit the link below:
 https://help.autodesk.com/view/MAYAUL/2020/ENU/index.html?contextId=COMMANDSPYTHON-INDEX
 '''
