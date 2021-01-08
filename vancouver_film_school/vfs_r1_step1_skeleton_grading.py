@@ -14,12 +14,16 @@
  Added output textbox (so students don't need to use script editor at this point)
  Changed the names of all joints to match a new pattern - "side_description_jnt" (all lowercase)
  
- 1.3 - 2020/10/10
+ 1.3 - 2020-10-10
  Updated tolerance to avoid false positives when checking the spine
  Updated tolerance to avoid false positives when checking fingers
  
+ 1.4 - 2021-01-07
+ Added a few checks to see if student is using the provided file
+ 
 """
 import maya.cmds as cmds
+import base64
 from maya import OpenMayaUI as omui
 
 try:
@@ -39,7 +43,7 @@ character_name = 'Betty'
 script_name = 'Rigging 1 - Skeleton Checker'
 
 # Version
-script_version = '1.3'
+script_version = '1.4'
 
 
 def build_gui_gt_r1_skeleton_check():
@@ -106,10 +110,25 @@ def build_gui_gt_r1_skeleton_check():
         except Exception as exception:
             cmds.scrollField(output_scroll_field, e=True, ip=0, it=str(exception) + '\n')
     
+    def check_file_validity():
+        is_invalid = False
+        undesired_node = base64.decodestring('bV9yMWhu')
+        try:
+            undesired_attr = base64.decodestring('cm9vdF9qbnQucl9yMWhu')
+            cmds.getAttr(undesired_attr)
+            is_invalid = True
+        except:
+            pass
+        if cmds.objExists(undesired_node):
+            is_invalid = True
+       
+        return is_invalid
+    
     
     def check_skeleton():
         
         cmds.scrollField(output_scroll_field, e=True, clear=True)
+        
         
         mark = 0
         root = []
@@ -219,6 +238,11 @@ def build_gui_gt_r1_skeleton_check():
                        'right_hip_jnt', 'right_knee_jnt', 'right_ankle_jnt', 'right_ball_jnt', 'right_toe_endJnt']
 
         joints = cmds.ls(type='joint')
+
+        # check file source
+        if check_file_validity():
+            cmds.scrollField(output_scroll_field, e=True, ip=0, it='This file was provided by your instructor. You should create your own.\n')
+            deductions = 100
 
         # check file type
         file_type = cmds.file(query=True, type=1)
@@ -418,7 +442,7 @@ def build_gui_gt_r1_skeleton_check():
             placement_mark = 25
         if scene_mark >= 5:
             scene_mark = 5
-            
+        
         final_mark = name_mark + parenting_mark + orients_mark + transforms_mark + placement_mark + scene_mark - deductions
        
         if final_mark >= 100:
@@ -440,9 +464,9 @@ def build_gui_gt_r1_skeleton_check():
 
         cmds.scrollField(output_scroll_field, e=True, ip=1, it='') # Bring Back to the Top
         
+
     # First Refresh
     reroute_errors()
-
 
 #Build GUI
 if __name__ == '__main__':
