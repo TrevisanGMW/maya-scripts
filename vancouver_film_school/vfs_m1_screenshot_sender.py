@@ -1,5 +1,5 @@
 """
- This script has been modified for Modeling 1. (Originally GT Maya to Discord)
+ This script has been modified for Modeling 1.
  GT Screenshot Sender - Send images to your instructor.
  @Guilherme Trevisan - TrevisanGMW@gmail.com - 2021-01-05 - github.com/TrevisanGMW
  Tested on Maya 2018, 2019, 2020 - Windows 10
@@ -178,7 +178,7 @@ def build_gui_submit_screenshot():
     send_desktop_btn = cmds.iconTextButton( style='iconAndTextVertical', image1=send_desktop_btn_ico, label='Send Screenshot to Instructor',\
                                             statusBarMessage='This button will take a screenshot to your instructor.',\
                                             olc=[1,0,0] , enableBackground=True, bgc=screenshot_btn_color, h=80,\
-                                            command=lambda: send_viewport_only())
+                                            command=lambda: send_maya_window())
     
     cmds.separator(h=2, style='none') # Empty Space           
     cmds.separator(h=10, style='none') # Empty Space
