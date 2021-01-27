@@ -10,6 +10,10 @@
     This script deletes all keyframes (not including set driven keys)
     If for some reason you have keys that you want to keep in your scene, 
     comment out the line "delete_all_keyframes()" at the bottom of the script
+    
+  Todo:
+    Create a GUI to make it easier for less technical students
+    Add the option to test rotation and other dimensions
 """
 
 
@@ -41,6 +45,7 @@ def auto_keyframe_updown(value, attribute, interval):
     '''
     selection = cmds.ls(selection=True) # Gets a list with of the current selection
     current_frame = cmds.playbackOptions( animationStartTime=True, q=True ) # Gets the first frame available in the timeline (usually 0 or 1)
+    current_max_time = cmds.playbackOptions( maxTime=True, q=True ) # Gets the max time (work area end frame) to see if it needs to expand the timeline
     cmds.currentTime(current_frame) # Resets timeline to first frame 
     
     up_value = value # Positive Up value
@@ -66,6 +71,10 @@ def auto_keyframe_updown(value, attribute, interval):
             cmds.move(up_value, obj, y=True, relative=True, ws=True)
             cmds.setKeyframe(obj, at=attribute, t=current_frame, itt='linear')
    
+    print(current_frame)
+    print(current_max_time)
+    if current_frame > current_max_time:
+        cmds.playbackOptions( maxTime=current_frame )
 
 
 # Calls functions using a try and catch operation and undo chunk for better handling
