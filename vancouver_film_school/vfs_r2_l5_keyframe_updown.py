@@ -15,7 +15,7 @@
     Create a GUI to make it easier for less technical students
     Add the option to test rotation and other dimensions
 """
-
+import maya.cmds as cmds # 1. Import Maya Commands
 
 def delete_all_keyframes():
     ''' 
