@@ -2,7 +2,7 @@
  This script is a modified version of GT Maya to Discord.
  VFS Discord Announcement Script 
  @Guilherme Trevisan - TrevisanGMW@gmail.com - 2021-02-12 - github.com/TrevisanGMW
-
+ 
 """ 
 try:
     from shiboken2 import wrapInstance
