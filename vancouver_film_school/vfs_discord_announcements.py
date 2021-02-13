@@ -3,9 +3,7 @@
  VFS Discord Announcement Script 
  @Guilherme Trevisan - TrevisanGMW@gmail.com - 2021-02-12 - github.com/TrevisanGMW
 
-  
 """ 
-
 try:
     from shiboken2 import wrapInstance
 except ImportError:
@@ -40,7 +38,6 @@ from json import dumps
 from json import loads
 from httplib2 import Http
 
-
 # Script Name
 script_name = "VFS Discord Announcement Script"
 
@@ -54,7 +51,6 @@ _BOUNDARY_CHARS = string.digits + string.ascii_letters
 # Settings
 gt_mtod_vfs_announcement = { 'discord_username'  : 'Announcement Bot',
                              'current_webhook' : ''}
-
 
 # Default Settings (Deep Copy)
 gt_mtod_vfs_announcement_default = copy.deepcopy(gt_mtod_vfs_announcement)   
