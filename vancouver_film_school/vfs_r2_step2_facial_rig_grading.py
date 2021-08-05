@@ -25,6 +25,9 @@
  Updated the script to be compatible with the new facial rigging curriculum (facial controls)
  Changed the reset viewport function to not show colors
  
+ 1.5 - 2021-08-04
+ Changed reset transforms method to not affect the fingers (scale)
+ 
  
  To Do:
     Update nonunique elements function (old)
@@ -61,7 +64,7 @@ script_name = 'GT - Grading Script'
 re_file_name = re.compile(r'(^\dD\d{3}\_\w+\_)(FacialRig|FacialRigging|Facial_Rig|FaceRig)(_|.)')
 
 # Version
-script_version = '1.4'
+script_version = '1.5'
 
 # Grading Components
 gt_grading_components = { 0 : ['Organization & Functionality', 20],
@@ -1088,6 +1091,8 @@ def reset_transforms():
     all_meshes = cmds.ls(type='mesh')
     all_transforms = cmds.ls(type='transform')
     
+    ignore_objects = ['right_fingers_ctrl', 'left_fingers_ctrl']
+    
     for obj in all_meshes:
         try:
             mesh_transform = ''
@@ -1186,15 +1191,15 @@ def reset_transforms():
 
                 obj_connection_sx = cmds.listConnections( obj + '.scaleX', d=False, s=True ) or []
                 if not len(obj_connection_sx) > 0:
-                    if cmds.getAttr(obj + '.scaleX', lock=True) is False:
+                    if cmds.getAttr(obj + '.scaleX', lock=True) is False and obj not in ignore_objects:
                         cmds.setAttr(obj + '.scaleX', 1)
                 obj_connection_sy = cmds.listConnections( obj + '.scaleY', d=False, s=True ) or []
                 if not len(obj_connection_sy) > 0:
-                    if cmds.getAttr(obj + '.scaleY', lock=True) is False:
+                    if cmds.getAttr(obj + '.scaleY', lock=True) is False and obj not in ignore_objects:
                         cmds.setAttr(obj + '.scaleY', 1)
                 obj_connection_sz = cmds.listConnections( obj + '.scaleZ', d=False, s=True ) or []
                 if not len(obj_connection_sz) > 0:
-                    if cmds.getAttr(obj + '.scaleZ', lock=True) is False:
+                    if cmds.getAttr(obj + '.scaleZ', lock=True) is False and obj not in ignore_objects:
                         cmds.setAttr(obj + '.scaleZ', 1)
         except Exception as e:
             #raise e
