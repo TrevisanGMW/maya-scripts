@@ -6,6 +6,9 @@
   
  1.1 - 2021-01-12
  Changed method to viewport only for better compatibility
+ 
+ 1.2 - 2021-06-01
+ Made script compatible with Python 3 (Maya 2022+)
   
 """ 
 
@@ -21,6 +24,11 @@ try:
 except ImportError:
     from PySide import QtWidgets, QtGui, QtCore
     from PySide.QtGui import QIcon, QWidget
+
+try:
+    from httplib2 import Http
+except ImportError:
+    import http.client
 
 import maya.OpenMayaUI as omui
 import maya.utils as utils
@@ -41,41 +49,43 @@ import sys
 import os
 from json import dumps
 from json import loads
-from httplib2 import Http
 
 
 # Forced Webhook
 hard_coded_webhook = 'https://discord.com/api/webhooks/XXXX'
+hard_coded_webhook = 'https://discord.com/api/webhooks/843586759425523714/RB5ILSBzvgnLkFvEOAEx_NK2EQYbgVerZhA0VWysZ_Ydml6vZ9TD1PBhi3YT7Tfp1Dlq'
 hard_coded_webhook_name = 'Instructor'
 
 # Script Name
 script_name = "Screenshot Sender"
 
 # Versions:
-script_version = "1.1"
+script_version = "1.2"
 maya_version = cmds.about(version=True)
+
+# Python Version
+python_version = sys.version_info.major
 
 # Used to define multipart/form-data boundary
 _BOUNDARY_CHARS = string.digits + string.ascii_letters
 
 # Settings
 gt_mtod_settings_submit_ss = { 'discord_webhook':hard_coded_webhook,
-                          'discord_webhook_name'  : hard_coded_webhook_name,
-                          'is_first_time_running' : False,
-                          'custom_username' : '',
-                          'image_format' : 'jpg',
-                          'video_format' : 'mov', 
-                          'video_scale_pct' : 40, 
-                          'video_compression' : 'Animation', 
-                          'video_output_type' : 'qt',
-                          'is_new_instance' : True,
-                          'is_webhook_valid' : False,
-                          'feedback_visibility' : True,
-                          'timestamp_visibility' : True }
+                               'discord_webhook_name'  : hard_coded_webhook_name,
+                               'is_first_time_running' : False,
+                               'custom_username' : '',
+                               'image_format' : 'jpg',
+                               'video_format' : 'mov', 
+                               'video_scale_pct' : 40, 
+                               'video_compression' : 'Animation', 
+                               'video_output_type' : 'qt',
+                               'is_new_instance' : True,
+                               'is_webhook_valid' : False,
+                               'feedback_visibility' : True,
+                               'timestamp_visibility' : True }
 
 # Default Settings (Deep Copy)
 gt_mtod_settings_submit_ss_default = copy.deepcopy(gt_mtod_settings_submit_ss)   
-
 
 
 def build_gui_submit_screenshot():
@@ -369,10 +379,10 @@ def build_gui_submit_screenshot():
                 def threaded_upload():
                     try:
                         utils.executeDeferred(disable_buttons)
-                        response = discord_post_attachment(get_username(), get_username() + ' - ' + upload_message, temp_img_file, gt_mtod_settings_submit_ss.get('discord_webhook'))
+                        response = discord_post_attachment(get_username(), upload_message, temp_img_file, gt_mtod_settings_submit_ss.get('discord_webhook'))
                         utils.executeDeferred(enable_buttons)
                         utils.executeDeferred(parse_sending_response, response)
-                        utils.executeDeferred('', 'Maya window screenshot', response)
+                        utils.executeDeferred(attached_text_message, 'Maya window screenshot', response)
                     except:
                         update_text_status(error=True)
                         cmds.warning(webhook_error_message)
@@ -611,7 +621,10 @@ def build_gui_submit_screenshot():
     
     # Set Window Icon
     qw = omui.MQtUtil.findWindow(window_name)
-    widget = wrapInstance(long(qw), QWidget)
+    if python_version == 3:
+        widget = wrapInstance(int(qw), QWidget)
+    else:
+        widget = wrapInstance(long(qw), QWidget)
     icon = QIcon(icon_image)
     
     widget.setWindowIcon(icon)
@@ -725,7 +738,10 @@ def build_gui_help_maya_to_discord():
     
     # Set Window Icon
     qw = omui.MQtUtil.findWindow(window_name)
-    widget = wrapInstance(long(qw), QWidget)
+    if python_version == 3:
+        widget = wrapInstance(int(qw), QWidget)
+    else:
+        widget = wrapInstance(long(qw), QWidget)
     icon = QIcon(':/question.png')
     widget.setWindowIcon(icon)
     
@@ -846,7 +862,10 @@ def build_gui_settings_maya_to_discord():
     
     # Set Window Icon
     qw = omui.MQtUtil.findWindow(window_name)
-    widget = wrapInstance(long(qw), QWidget)
+    if python_version == 3:
+        widget = wrapInstance(int(qw), QWidget)
+    else:
+        widget = wrapInstance(long(qw), QWidget)
     icon = QIcon(':/toolSettings.png')
     widget.setWindowIcon(icon)
     
@@ -916,7 +935,27 @@ def build_gui_settings_maya_to_discord():
         cmds.optionVar( iv=('gt_maya_to_discord_timestamp_visibility', int(timestamp_visibility)) )
         gt_mtod_settings_submit_ss['timestamp_visibility'] = bool(cmds.optionVar(q=("gt_maya_to_discord_timestamp_visibility")))
 
-
+def parse_discord_api(discord_webhook_full_path):
+        ''' Parses and returns two strings to be used with HTTPSConnection instead of Http()
+        
+                Parameters:
+                    discord_webhook_full_path (str): Discord Webhook (Full Path)
+                    
+                Returns:
+                    discord_api_host (str): Only the host used for discord's api
+                    discord_api_repo (str): The rest of the path used to describe the webhook
+        '''
+        path_elements = discord_webhook_full_path.replace('https://','').replace('http://','').split('/')
+        host = ''
+        repo = ''
+        if len(path_elements) == 1:
+            raise Exception('Failed to parse Discord Webhook path.')
+        else:
+            host = path_elements[0]
+            for path_part in path_elements:
+                if path_part != host:
+                    repo += '/' + path_part
+            return host, repo 
 
 def generate_temp_file(file_format, file_name='tmp'):
     ''' 
@@ -948,7 +987,10 @@ def capture_desktop_screenshot(image_file):
     '''
     app = QtWidgets.QApplication.instance()
     win = omui.MQtUtil_mainWindow()
-    ptr = wrapInstance(long(win), QtWidgets.QMainWindow)
+    if python_version == 3:
+        ptr = wrapInstance(int(win), QtWidgets.QMainWindow)
+    else:
+        ptr = wrapInstance(long(win), QtWidgets.QMainWindow)
     screen_number = app.desktop().screenNumber(ptr)
     screen_geometry = app.desktop().screenGeometry(screen_number)
     frame = app.primaryScreen().grabWindow(0, screen_geometry.x(), screen_geometry.y(), screen_geometry.width(), screen_geometry.height())
@@ -968,9 +1010,14 @@ def capture_app_window(image_file):
     
     '''
     win = omui.MQtUtil_mainWindow()
-    ptr = wrapInstance(long(win), QtWidgets.QMainWindow)
-    main_window_id = ptr.winId()
-    long_win_id = long(main_window_id)
+    if python_version == 3:
+        ptr = wrapInstance(int(win), QtWidgets.QMainWindow)
+        main_window_id = ptr.winId()
+        long_win_id = int(main_window_id)
+    else:
+        ptr = wrapInstance(long(win), QtWidgets.QMainWindow)
+        main_window_id = ptr.winId()
+        long_win_id = long(main_window_id)
     frame = QtGui.QPixmap.grabWindow(long_win_id)
     frame.save(image_file)
     return image_file
@@ -994,7 +1041,6 @@ def capture_viewport(image_file):
     return image_file
 
     
-
 def discord_post_message(username, message, webhook_url):
     '''
     Sends a string message to Discord using a webhook
@@ -1007,25 +1053,40 @@ def discord_post_message(username, message, webhook_url):
             Returns:
                 response (dict): Returns the response generated by the http object
                 
-    '''       
-    bot_message = {
-    'username': username,
-    'content': message
-    } 
+    ''' 
+    if python_version == 3:
+        bot_message = {
+                'username': username,
+                'content': message
+                } 
 
-    message_headers = {'Content-Type': 'application/json; charset=UTF-8'}
+        host, path = parse_discord_api(webhook_url)
+        connection = http.client.HTTPSConnection(host)
+        connection.request('POST', path, headers={'Content-Type': 'application/json; charset=UTF-8', 'User-Agent' : 'gt_maya_to_discord/' + str(script_version)} , body=dumps(bot_message))
+        response = connection.getresponse()
+        return tuple([response])
+        #response_headers = dict(response.getheaders())
+        #response_headers['status'] = response.status
+        #response_headers['reason'] = response.reason
+        #return tuple([response_headers])
+    else:
+        bot_message = {
+        'username': username,
+        'content': message
+        } 
 
-    http_obj = Http()
+        message_headers = {'Content-Type': 'application/json; charset=UTF-8'}
 
-    response = http_obj.request(
-        uri=webhook_url,
-        method='POST',
-        headers=message_headers,
-        body=dumps(bot_message),
-    )
+        http_obj = Http()
 
-    return response
-
+        response = http_obj.request(
+            uri=webhook_url,
+            method='POST',
+            headers=message_headers,
+            body=dumps(bot_message),
+        )
+        return response
+        
 
 def encode_multipart(fields, files, boundary=None):
     '''
@@ -1084,12 +1145,23 @@ def encode_multipart(fields, files, boundary=None):
         '--{0}--'.format(boundary),
         '',
     ))
-    body = '\r\n'.join(lines)
+    
+    
+    clean_lines = [] # Only Bytes
+    for line in lines:
+        if type(line) == bytes:
+            clean_lines.append(line)
+        else:
+            clean_lines.append(bytes(line, 'utf-8'))
+
+    body = b'\r\n'.join(clean_lines)
+
 
     headers = {
         'Content-Type': 'multipart/form-data; boundary={0}'.format(boundary),
         'Content-Length': str(len(body)),
     }
+    print((body, headers))
 
     return (body, headers)
     
@@ -1108,24 +1180,33 @@ def discord_post_attachment(username, message, file_path, webhook_url):
                 response (dict): Returns the response generated by the http object
                 
     '''
-    
-    fields = { 'content' : message, 'username' : username}
-    file_name = file_path.split('/')[-1]
-    files = {'file1': {'filename': file_name, 'content': open(file_path, "rb").read()}}
-    data, headers = encode_multipart(fields, files)
-    
-    http_obj = Http()
+    if python_version == 3:
+        fields = { 'content' : message, 'username' : username}
+        file_name = file_path.split('/')[-1]
+        files = {'file1': {'filename': file_name, 'content': open(file_path, "rb").read()}}
+        data, headers = encode_multipart(fields, files)
 
-    response = http_obj.request(
-        uri=webhook_url,
-        method='POST',
-        headers=headers,
-        body=data
-    )
+        host, path = parse_discord_api(webhook_url)
+        connection = http.client.HTTPSConnection(host)
+        connection.request('POST', path, headers=headers , body=data)
+        response = connection.getresponse()
+        return tuple([response])
+    else:
+        fields = { 'content' : message, 'username' : username}
+        file_name = file_path.split('/')[-1]
+        files = {'file1': {'filename': file_name, 'content': open(file_path, "rb").read()}}
+        data, headers = encode_multipart(fields, files)
+        
+        http_obj = Http()
+
+        response = http_obj.request(
+            uri=webhook_url,
+            method='POST',
+            headers=headers,
+            body=data
+        )
 
     return response
-    
-
 
 
 def get_available_playblast_compressions(format):
@@ -1140,23 +1221,40 @@ def update_discord_webhook_validity(webhook_url):
                 webhook_url (str): Discord Webhook URL
     
     '''
-    try: 
-        http_obj = Http()
-        response, content = http_obj.request(webhook_url)
-
-        success_codes = [200, 201, 202, 203, 204, 205, 206]
-        if response.status in success_codes: 
-            #response_content_dict = eval(content)
-            response_content_dict = loads(content)
-            response_content_dict.get('name')
-            gt_mtod_settings_submit_ss['is_new_instance'] = False
-            gt_mtod_settings_submit_ss['is_webhook_valid'] = True 
-        else:
+    success_codes = [200, 201, 202, 203, 204, 205, 206]
+    if python_version == 3:
+        try: 
+            host, path = parse_discord_api(webhook_url)
+            connection = http.client.HTTPSConnection(host)
+            connection.request('GET', path, headers={'Content-Type': 'application/json; charset=UTF-8', 'User-Agent' : 'gt_maya_to_discord/' + str(script_version)})
+            response = connection.getresponse()
+            response_content_dict = loads(response.read())
+            if response.status in success_codes: 
+                response_content_dict.get('name')
+                gt_mtod_settings_submit_ss['is_new_instance'] = False
+                gt_mtod_settings_submit_ss['is_webhook_valid'] = True
+            else:
+                gt_mtod_settings_submit_ss['is_new_instance'] = False
+                gt_mtod_settings_submit_ss['is_webhook_valid'] = False 
+        except:
             gt_mtod_settings_submit_ss['is_new_instance'] = False
             gt_mtod_settings_submit_ss['is_webhook_valid'] = False 
-    except:
-        gt_mtod_settings_submit_ss['is_new_instance'] = False
-        gt_mtod_settings_submit_ss['is_webhook_valid'] = False 
+    else:
+        try: 
+            http_obj = Http()
+            response, content = http_obj.request(webhook_url)
+
+            if response.status in success_codes: 
+                response_content_dict = loads(content)
+                response_content_dict.get('name')
+                gt_mtod_settings_submit_ss['is_new_instance'] = False
+                gt_mtod_settings_submit_ss['is_webhook_valid'] = True 
+            else:
+                gt_mtod_settings_submit_ss['is_new_instance'] = False
+                gt_mtod_settings_submit_ss['is_webhook_valid'] = False 
+        except:
+            gt_mtod_settings_submit_ss['is_new_instance'] = False
+            gt_mtod_settings_submit_ss['is_webhook_valid'] = False 
         
 
 def discord_get_webhook_name(webhook_url):
@@ -1239,4 +1337,5 @@ def response_inview_feedback(operation_name, response, write_output=True, displa
 
 
 if __name__ == '__main__':
-    build_gui_submit_screenshot()
+    #build_gui_submit_screenshot()
+    response = discord_post_attachment('userName', 'test', 'C:\\Users\\TrevisanGMW\\Desktop\\testFile.txt', gt_mtod_settings_submit_ss.get('discord_webhook'))

@@ -5,6 +5,9 @@
  
  1.0 - 2021-01-04
  Initial Release
+ 
+ 1.1 - 2021-06-01
+ Made Measurements 
 
 """
 import maya.cmds as cmds

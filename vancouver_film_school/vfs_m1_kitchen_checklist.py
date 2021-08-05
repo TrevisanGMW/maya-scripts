@@ -12,6 +12,11 @@
  1.2 - 2020-12-07
  Updated some UI colors
  Fixed issue where non-unique objects wouldn't be selected for non-manifold geometry.
+ 
+ 1.3 - 2021-06-01
+ Made script compatible with Python 3 (Maya 2022+)
+ Animated visibility check now ignores objects that are hidden in the outliner (cabinet locators)
+ Fixed a typo
 
  
 """
@@ -36,7 +41,10 @@ except ImportError:
 script_name = "Modeling 1 - Kitchen Checklist" 
 
 # Version
-script_version = "1.2";
+script_version = "1.3"
+
+# Python Version
+python_version = sys.version_info.major
 
 # Status Colors
 def_color = 0.3, 0.3, 0.3
@@ -162,7 +170,10 @@ def build_gui_gt_m1_kitchen_checklist():
     
     # Set Window Icon
     qw = omui.MQtUtil.findWindow(window_name)
-    widget = wrapInstance(long(qw), QWidget)
+    if python_version == 3:
+        widget = wrapInstance(int(qw), QWidget)
+    else:
+        widget = wrapInstance(long(qw), QWidget)
     icon = QIcon(':/checkboxOn.png')
     widget.setWindowIcon(icon)
 
@@ -376,7 +387,10 @@ def build_gui_help_gt_m1_kitchen_checklist():
     
     # Set Window Icon
     qw = omui.MQtUtil.findWindow(window_name)
-    widget = wrapInstance(long(qw), QWidget)
+    if python_version == 3:
+        widget = wrapInstance(int(qw), QWidget)
+    else:
+        widget = wrapInstance(long(qw), QWidget)
     icon = QIcon(':/question.png')
     widget.setWindowIcon(icon)
     
@@ -1265,7 +1279,11 @@ def check_animated_visibility():
     
     for transform in all_transforms:
         attributes = cmds.listAttr(transform)
-        if 'visibility' in attributes:
+        not_outliner_hidden = False
+        if 'hiddenInOutliner' in attributes:
+            outliner_hidden = cmds.getAttr(transform + ".hiddenInOutliner")
+
+        if 'visibility' in attributes and not outliner_hidden:
             if cmds.getAttr(transform + ".visibility") == 0:
                 children = cmds.listRelatives(transform, s=True, pa=True) or []
                 if len(children) != 0:

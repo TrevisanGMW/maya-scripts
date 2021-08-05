@@ -21,6 +21,9 @@
  1.4 - 2021-01-07
  Added a few checks to see if student is using the provided file
  
+ 1.5 - 2021-06-01
+ Made script compatible with Python 3 (Maya 2022+)
+ 
 """
 import maya.cmds as cmds
 import base64
@@ -43,8 +46,10 @@ character_name = 'Betty'
 script_name = 'Rigging 1 - Skeleton Checker'
 
 # Version
-script_version = '1.4'
+script_version = '1.5'
 
+# Python Version
+python_version = sys.version_info.major
 
 def build_gui_gt_r1_skeleton_check():
     
@@ -99,7 +104,10 @@ def build_gui_gt_r1_skeleton_check():
     
     # Set Window Icon
     qw = omui.MQtUtil.findWindow(window_name)
-    widget = wrapInstance(long(qw), QWidget)
+    if python_version == 3:
+        widget = wrapInstance(int(qw), QWidget)
+    else:
+        widget = wrapInstance(long(qw), QWidget)
     icon = QIcon(':/kinJoint.png')
     widget.setWindowIcon(icon)
     
@@ -112,9 +120,9 @@ def build_gui_gt_r1_skeleton_check():
     
     def check_file_validity():
         is_invalid = False
-        undesired_node = base64.decodestring('bV9yMWhu')
+        undesired_node = base64.b64decode('bV9yMWhu')
         try:
-            undesired_attr = base64.decodestring('cm9vdF9qbnQucl9yMWhu')
+            undesired_attr = base64.b64decode('cm9vdF9qbnQucl9yMWhu')
             cmds.getAttr(undesired_attr)
             is_invalid = True
         except:
