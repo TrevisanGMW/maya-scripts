@@ -28,6 +28,9 @@
  1.5 - 2021-08-04
  Changed reset transforms method to not affect the fingers (scale)
  
+ 1.5.1 - 2021-08-17
+ Changed reset transforms method to not affect the group "facial_rig_panel_grp"
+ 
  
  To Do:
     Update nonunique elements function (old)
@@ -64,7 +67,7 @@ script_name = 'GT - Grading Script'
 re_file_name = re.compile(r'(^\dD\d{3}\_\w+\_)(FacialRig|FacialRigging|Facial_Rig|FaceRig)(_|.)')
 
 # Version
-script_version = '1.5'
+script_version = '1.5.1'
 
 # Grading Components
 gt_grading_components = { 0 : ['Organization & Functionality', 20],
@@ -1091,7 +1094,8 @@ def reset_transforms():
     all_meshes = cmds.ls(type='mesh')
     all_transforms = cmds.ls(type='transform')
     
-    ignore_objects = ['right_fingers_ctrl', 'left_fingers_ctrl']
+    ignore_objects = ['right_fingers_ctrl', 'left_fingers_ctrl', 'facial_rig_panel_grp', 'bonus_panel_grp', 'eyes_panel_grp', 'text_eyes_eyes_crv', 'frame_template_eyes_crv',
+                      'letter_r_cheeks_crv1', 'letter_l_cheeks_crv1', 'letter_r_cheeks_crv', 'letter_l_cheeks_crv', 'letter_s_eyes_crv', 'text_bonus_crv', ]
     
     for obj in all_meshes:
         try:
@@ -1165,28 +1169,28 @@ def reset_transforms():
                 
                 obj_connection_tx = cmds.listConnections( obj + '.tx', d=False, s=True ) or []
                 if not len(obj_connection_tx) > 0:
-                    if cmds.getAttr(obj + '.tx', lock=True) is False:
+                    if cmds.getAttr(obj + '.tx', lock=True) is False and obj not in ignore_objects:
                         cmds.setAttr(obj + '.tx', 0)
                 obj_connection_ty = cmds.listConnections( obj + '.ty', d=False, s=True ) or []
                 if not len(obj_connection_ty) > 0:
-                    if cmds.getAttr(obj + '.ty', lock=True) is False:
+                    if cmds.getAttr(obj + '.ty', lock=True) is False and obj not in ignore_objects:
                         cmds.setAttr(obj + '.ty', 0)
                 obj_connection_tz = cmds.listConnections( obj + '.tz', d=False, s=True ) or []
                 if not len(obj_connection_tz) > 0:
-                    if cmds.getAttr(obj + '.tz', lock=True) is False:
+                    if cmds.getAttr(obj + '.tz', lock=True) is False and obj not in ignore_objects:
                         cmds.setAttr(obj + '.tz', 0)
                 
                 obj_connection_rx = cmds.listConnections( obj + '.rotateX', d=False, s=True ) or []
                 if not len(obj_connection_rx) > 0:
-                    if cmds.getAttr(obj + '.rotateX', lock=True) is False:
+                    if cmds.getAttr(obj + '.rotateX', lock=True) is False and obj not in ignore_objects:
                         cmds.setAttr(obj + '.rotateX', 0)
                 obj_connection_ry = cmds.listConnections( obj + '.rotateY', d=False, s=True ) or []
                 if not len(obj_connection_ry) > 0:
-                    if cmds.getAttr(obj + '.rotateY', lock=True) is False:
+                    if cmds.getAttr(obj + '.rotateY', lock=True) is False and obj not in ignore_objects:
                         cmds.setAttr(obj + '.rotateY', 0)
                 obj_connection_rz = cmds.listConnections( obj + '.rotateZ', d=False, s=True ) or []
                 if not len(obj_connection_rz) > 0:
-                    if cmds.getAttr(obj + '.rotateZ', lock=True) is False:
+                    if cmds.getAttr(obj + '.rotateZ', lock=True) is False and obj not in ignore_objects:
                         cmds.setAttr(obj + '.rotateZ', 0)
 
                 obj_connection_sx = cmds.listConnections( obj + '.scaleX', d=False, s=True ) or []
